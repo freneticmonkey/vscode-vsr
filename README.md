@@ -1,2 +1,2 @@
 # vscode-vsr
-VSCode SCM extension for Versionr
+VSCode SCM extension for Versionr.  Forked from the VSCode Git Extension.
