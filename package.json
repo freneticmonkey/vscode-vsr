@@ -1,0 +1,1867 @@
+{
+  "name": "vsr",
+  "displayName": "%displayName%",
+  "description": "%description%",
+  "publisher": "freneticmonkey",
+  "license": "MIT",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.5.0"
+  },
+  "enableProposedApi": true,
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/main",
+  "icon": "resources/icons/vsr.png",
+  "scripts": {
+    "compile": "gulp compile-extension:vsr",
+    "watch": "gulp watch-extension:vsr",
+    "test": "mocha"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "vsr.setLogLevel",
+        "title": "%command.setLogLevel%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.clone",
+        "title": "%command.clone%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.init",
+        "title": "%command.init%",
+        "category": "Vsr",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vsr.openRepository",
+        "title": "%command.openRepository%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.close",
+        "title": "%command.close%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.refresh",
+        "title": "%command.refresh%",
+        "category": "Vsr",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "vsr.openChange",
+        "title": "%command.openChange%",
+        "category": "Vsr",
+        "icon": "$(compare-changes)"
+      },
+      {
+        "command": "vsr.openFile",
+        "title": "%command.openFile%",
+        "category": "Vsr",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "vsr.openFile2",
+        "title": "%command.openFile%",
+        "category": "Vsr",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "vsr.openHEADFile",
+        "title": "%command.openHEADFile%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stage",
+        "title": "%command.stage%",
+        "category": "Vsr",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vsr.stageAll",
+        "title": "%command.stageAll%",
+        "category": "Vsr",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vsr.stageAllTracked",
+        "title": "%command.stageAllTracked%",
+        "category": "Vsr",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vsr.stageAllUntracked",
+        "title": "%command.stageAllUntracked%",
+        "category": "Vsr",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vsr.stageSelectedRanges",
+        "title": "%command.stageSelectedRanges%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.revertSelectedRanges",
+        "title": "%command.revertSelectedRanges%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stageChange",
+        "title": "%command.stageChange%",
+        "category": "Vsr",
+        "icon": "$(add)"
+      },
+      {
+        "command": "vsr.revertChange",
+        "title": "%command.revertChange%",
+        "category": "Vsr",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "vsr.unstage",
+        "title": "%command.unstage%",
+        "category": "Vsr",
+        "icon": "$(remove)"
+      },
+      {
+        "command": "vsr.unstageAll",
+        "title": "%command.unstageAll%",
+        "category": "Vsr",
+        "icon": "$(remove)"
+      },
+      {
+        "command": "vsr.unstageSelectedRanges",
+        "title": "%command.unstageSelectedRanges%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.clean",
+        "title": "%command.clean%",
+        "category": "Vsr",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "vsr.cleanAll",
+        "title": "%command.cleanAll%",
+        "category": "Vsr",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "vsr.cleanAllTracked",
+        "title": "%command.cleanAllTracked%",
+        "category": "Vsr",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "vsr.cleanAllUntracked",
+        "title": "%command.cleanAllUntracked%",
+        "category": "Vsr",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "vsr.commit",
+        "title": "%command.commit%",
+        "category": "Vsr",
+        "icon": "$(check)"
+      },
+      {
+        "command": "vsr.commitStaged",
+        "title": "%command.commitStaged%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.commitEmpty",
+        "title": "%command.commitEmpty%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.commitStagedSigned",
+        "title": "%command.commitStagedSigned%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.commitStagedAmend",
+        "title": "%command.commitStagedAmend%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.commitAll",
+        "title": "%command.commitAll%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.commitAllSigned",
+        "title": "%command.commitAllSigned%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.commitAllAmend",
+        "title": "%command.commitAllAmend%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.restoreCommitTemplate",
+        "title": "%command.restoreCommitTemplate%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.undoCommit",
+        "title": "%command.undoCommit%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.checkout",
+        "title": "%command.checkout%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.branch",
+        "title": "%command.branch%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.branchFrom",
+        "title": "%command.branchFrom%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.deleteBranch",
+        "title": "%command.deleteBranch%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.renameBranch",
+        "title": "%command.renameBranch%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.merge",
+        "title": "%command.merge%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.createTag",
+        "title": "%command.createTag%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.deleteTag",
+        "title": "%command.deleteTag%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.fetch",
+        "title": "%command.fetch%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.fetchPrune",
+        "title": "%command.fetchPrune%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.fetchAll",
+        "title": "%command.fetchAll%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pull",
+        "title": "%command.pull%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pullRebase",
+        "title": "%command.pullRebase%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pullFrom",
+        "title": "%command.pullFrom%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.push",
+        "title": "%command.push%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pushForce",
+        "title": "%command.pushForce%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pushTo",
+        "title": "%command.pushTo%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pushToForce",
+        "title": "%command.pushToForce%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pushWithTags",
+        "title": "%command.pushFollowTags%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.pushWithTagsForce",
+        "title": "%command.pushFollowTagsForce%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.addRemote",
+        "title": "%command.addRemote%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.removeRemote",
+        "title": "%command.removeRemote%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.sync",
+        "title": "%command.sync%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.syncRebase",
+        "title": "%command.syncRebase%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.publish",
+        "title": "%command.publish%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.showOutput",
+        "title": "%command.showOutput%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.ignore",
+        "title": "%command.ignore%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.revealInExplorer",
+        "title": "%command.revealInExplorer%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stashIncludeUntracked",
+        "title": "%command.stashIncludeUntracked%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stash",
+        "title": "%command.stash%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stashPop",
+        "title": "%command.stashPop%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stashPopLatest",
+        "title": "%command.stashPopLatest%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stashApply",
+        "title": "%command.stashApply%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stashApplyLatest",
+        "title": "%command.stashApplyLatest%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.stashDrop",
+        "title": "%command.stashDrop%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.timeline.openDiff",
+        "title": "%command.timelineOpenDiff%",
+        "icon": "$(compare-changes)",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.timeline.copyCommitId",
+        "title": "%command.timelineCopyCommitId%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.timeline.copyCommitMessage",
+        "title": "%command.timelineCopyCommitMessage%",
+        "category": "Vsr"
+      },
+      {
+        "command": "vsr.rebaseAbort",
+        "title": "%command.rebaseAbort%",
+        "category": "Vsr"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vsr.stageSelectedRanges",
+        "key": "ctrl+k ctrl+alt+s",
+        "mac": "cmd+k cmd+alt+s",
+        "when": "isInDiffEditor"
+      },
+      {
+        "command": "vsr.unstageSelectedRanges",
+        "key": "ctrl+k ctrl+u",
+        "mac": "cmd+k cmd+u",
+        "when": "isInDiffEditor"
+      },
+      {
+        "command": "vsr.revertSelectedRanges",
+        "key": "ctrl+k ctrl+r",
+        "mac": "cmd+k cmd+r",
+        "when": "isInDiffEditor"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "vsr.setLogLevel",
+          "when": "config.vsr.enabled && !vsr.missing"
+        },
+        {
+          "command": "vsr.clone",
+          "when": "config.vsr.enabled && !vsr.missing"
+        },
+        {
+          "command": "vsr.init",
+          "when": "config.vsr.enabled && !vsr.missing"
+        },
+        {
+          "command": "vsr.openRepository",
+          "when": "config.vsr.enabled && !vsr.missing"
+        },
+        {
+          "command": "vsr.close",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.refresh",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.openFile",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.openHEADFile",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stageAll",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stageAllTracked",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stageAllUntracked",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stageSelectedRanges",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stageChange",
+          "when": "false"
+        },
+        {
+          "command": "vsr.revertSelectedRanges",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.revertChange",
+          "when": "false"
+        },
+        {
+          "command": "vsr.openFile2",
+          "when": "false"
+        },
+        {
+          "command": "vsr.unstage",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.unstageAll",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.unstageSelectedRanges",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.cleanAll",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.cleanAllTracked",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.cleanAllUntracked",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commit",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitStaged",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitEmpty",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitStagedSigned",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitStagedAmend",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitAll",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitAllSigned",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.commitAllAmend",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.restoreCommitTemplate",
+          "when": "false"
+        },
+        {
+          "command": "vsr.revealInExplorer",
+          "when": "false"
+        },
+        {
+          "command": "vsr.undoCommit",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.checkout",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.branch",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.branchFrom",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.deleteBranch",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.renameBranch",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pull",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pullFrom",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pullRebase",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.merge",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.createTag",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.deleteTag",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.fetch",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.fetchPrune",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.fetchAll",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.push",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pushForce",
+          "when": "config.vsr.enabled && !vsr.missing && config.vsr.allowForcePush && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pushTo",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pushToForce",
+          "when": "config.vsr.enabled && !vsr.missing && config.vsr.allowForcePush && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pushWithTags",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.pushWithTagsForce",
+          "when": "config.vsr.enabled && !vsr.missing && config.vsr.allowForcePush && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.addRemote",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.removeRemote",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.sync",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.syncRebase",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.publish",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.showOutput",
+          "when": "config.vsr.enabled"
+        },
+        {
+          "command": "vsr.ignore",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stashIncludeUntracked",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stash",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stashPop",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stashPopLatest",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stashApply",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stashApplyLatest",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.stashDrop",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0"
+        },
+        {
+          "command": "vsr.timeline.openDiff",
+          "when": "false"
+        },
+        {
+          "command": "vsr.timeline.copyCommitId",
+          "when": "false"
+        },
+        {
+          "command": "vsr.timeline.copyCommitMessage",
+          "when": "false"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "vsr.commit",
+          "group": "navigation",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.refresh",
+          "group": "navigation",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.sync",
+          "group": "1_sync",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.syncRebase",
+          "group": "1_sync",
+          "when": "scmProvider == vsr && vsrState == idle"
+        },
+        {
+          "command": "vsr.pull",
+          "group": "1_sync",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.pullRebase",
+          "group": "1_sync",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.pullFrom",
+          "group": "1_sync",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.push",
+          "group": "1_sync",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.pushForce",
+          "group": "1_sync",
+          "when": "scmProvider == vsr && config.vsr.allowForcePush"
+        },
+        {
+          "command": "vsr.pushTo",
+          "group": "1_sync",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.pushToForce",
+          "group": "1_sync",
+          "when": "scmProvider == vsr && config.vsr.allowForcePush"
+        },
+        {
+          "command": "vsr.checkout",
+          "group": "2_branch",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.publish",
+          "group": "2_branch",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.commitStaged",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.commitStagedSigned",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.commitStagedAmend",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.commitAll",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.commitAllSigned",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.commitAllAmend",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.undoCommit",
+          "group": "4_commit",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stageAll",
+          "group": "5_stage",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.unstageAll",
+          "group": "5_stage",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.cleanAll",
+          "group": "5_stage",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stashIncludeUntracked",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stash",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stashPop",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stashPopLatest",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stashApply",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stashApplyLatest",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.stashDrop",
+          "group": "6_stash",
+          "when": "scmProvider == vsr"
+        },
+        {
+          "command": "vsr.showOutput",
+          "group": "7_repository",
+          "when": "scmProvider == vsr"
+        }
+      ],
+      "scm/sourceControl": [
+        {
+          "command": "vsr.close",
+          "group": "navigation",
+          "when": "scmProvider == vsr"
+        }
+      ],
+      "scm/resourceGroup/context": [
+        {
+          "command": "vsr.stageAll",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.stageAll",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.unstageAll",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.unstageAll",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.cleanAll",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges == mixed",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.stageAll",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges == mixed",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.cleanAll",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges == mixed",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stageAll",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges == mixed",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.cleanAllTracked",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges != mixed",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.stageAllTracked",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges != mixed",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.cleanAllTracked",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges != mixed",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stageAllTracked",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.untrackedChanges != mixed",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.cleanAllUntracked",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.stageAllUntracked",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.cleanAllUntracked",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stageAllUntracked",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "inline"
+        }
+      ],
+      "scm/resourceFolder/context": [
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.unstage",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.unstage",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.ignore",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "1_modification@3"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.ignore",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification@3"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.openFile",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.revealInExplorer",
+          "when": "scmProvider == vsr && scmResourceGroup == merge",
+          "group": "2_view"
+        },
+        {
+          "command": "vsr.openFile2",
+          "when": "scmProvider == vsr && scmResourceGroup == merge && config.vsr.showInlineOpenFileAction && config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == merge && config.vsr.showInlineOpenFileAction && !config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.openFile",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.openHEADFile",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.unstage",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.unstage",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.revealInExplorer",
+          "when": "scmProvider == vsr && scmResourceGroup == index",
+          "group": "2_view"
+        },
+        {
+          "command": "vsr.openFile2",
+          "when": "scmProvider == vsr && scmResourceGroup == index && config.vsr.showInlineOpenFileAction && config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == index && config.vsr.showInlineOpenFileAction && !config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.openHEADFile",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.openFile",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.openFile2",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.showInlineOpenFileAction && config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree && config.vsr.showInlineOpenFileAction && !config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.ignore",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "1_modification@3"
+        },
+        {
+          "command": "vsr.revealInExplorer",
+          "when": "scmProvider == vsr && scmResourceGroup == workingTree",
+          "group": "2_view"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.openHEADFile",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.openFile",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "navigation"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked && !vsrFreshRepository",
+          "group": "1_modification"
+        },
+        {
+          "command": "vsr.clean",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked && !vsrFreshRepository",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.stage",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "inline"
+        },
+        {
+          "command": "vsr.openFile2",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked && config.vsr.showInlineOpenFileAction && config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.openChange",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked && config.vsr.showInlineOpenFileAction && !config.vsr.openDiffOnClick",
+          "group": "inline0"
+        },
+        {
+          "command": "vsr.ignore",
+          "when": "scmProvider == vsr && scmResourceGroup == untracked",
+          "group": "1_modification@3"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "vsr.openFile",
+          "group": "navigation",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        },
+        {
+          "command": "vsr.openChange",
+          "group": "navigation",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && !isInDiffEditor && resourceScheme == file"
+        },
+        {
+          "command": "vsr.stageSelectedRanges",
+          "group": "2_vsr@1",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        },
+        {
+          "command": "vsr.unstageSelectedRanges",
+          "group": "2_vsr@2",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        },
+        {
+          "command": "vsr.revertSelectedRanges",
+          "group": "2_vsr@3",
+          "when": "config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "vsr.stageSelectedRanges",
+          "group": "2_vsr@1",
+          "when": "isInDiffRightEditor && config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        },
+        {
+          "command": "vsr.unstageSelectedRanges",
+          "group": "2_vsr@2",
+          "when": "isInDiffRightEditor && config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        },
+        {
+          "command": "vsr.revertSelectedRanges",
+          "group": "2_vsr@3",
+          "when": "isInDiffRightEditor && config.vsr.enabled && !vsr.missing && vsrOpenRepositoryCount != 0 && isInDiffEditor && resourceScheme =~ /^vsr$|^file$/"
+        }
+      ],
+      "scm/change/title": [
+        {
+          "command": "vsr.stageChange",
+          "when": "config.vsr.enabled && !vsr.missing && originalResourceScheme == vsr"
+        },
+        {
+          "command": "vsr.revertChange",
+          "when": "config.vsr.enabled && !vsr.missing && originalResourceScheme == vsr"
+        }
+      ],
+      "timeline/item/context": [
+        {
+          "command": "vsr.timeline.openDiff",
+          "group": "1_actions",
+          "when": "config.vsr.enabled && !vsr.missing && timelineItem =~ /vsr:file\\b/"
+        },
+        {
+          "command": "vsr.timeline.copyCommitId",
+          "group": "5_copy@1",
+          "when": "config.vsr.enabled && !vsr.missing && timelineItem =~ /vsr:file:commit\\b/"
+        },
+        {
+          "command": "vsr.timeline.copyCommitMessage",
+          "group": "5_copy@2",
+          "when": "config.vsr.enabled && !vsr.missing && timelineItem =~ /vsr:file:commit\\b/"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Vsr",
+      "properties": {
+        "vsr.enabled": {
+          "type": "boolean",
+          "scope": "resource",
+          "description": "%config.enabled%",
+          "default": true
+        },
+        "vsr.path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "markdownDescription": "%config.path%",
+          "default": null,
+          "scope": "machine"
+        },
+        "vsr.autoRepositoryDetection": {
+          "type": [
+            "boolean",
+            "string"
+          ],
+          "enum": [
+            true,
+            false,
+            "subFolders",
+            "openEditors"
+          ],
+          "enumDescriptions": [
+            "%config.autoRepositoryDetection.true%",
+            "%config.autoRepositoryDetection.false%",
+            "%config.autoRepositoryDetection.subFolders%",
+            "%config.autoRepositoryDetection.openEditors%"
+          ],
+          "description": "%config.autoRepositoryDetection%",
+          "default": true
+        },
+        "vsr.autorefresh": {
+          "type": "boolean",
+          "description": "%config.autorefresh%",
+          "default": true
+        },
+        "vsr.autofetch": {
+          "type": "boolean",
+          "scope": "resource",
+          "description": "%config.autofetch%",
+          "default": false,
+          "tags": [
+            "usesOnlineServices"
+          ]
+        },
+        "vsr.autofetchPeriod": {
+          "type": "number",
+          "scope": "resource",
+          "description": "%config.autofetchPeriod%",
+          "default": 180
+        },
+        "vsr.branchValidationRegex": {
+          "type": "string",
+          "description": "%config.branchValidationRegex%",
+          "default": ""
+        },
+        "vsr.branchWhitespaceChar": {
+          "type": "string",
+          "description": "%config.branchWhitespaceChar%",
+          "default": "-"
+        },
+        "vsr.confirmSync": {
+          "type": "boolean",
+          "description": "%config.confirmSync%",
+          "default": true
+        },
+        "vsr.countBadge": {
+          "type": "string",
+          "enum": [
+            "all",
+            "tracked",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.countBadge.all%",
+            "%config.countBadge.tracked%",
+            "%config.countBadge.off%"
+          ],
+          "description": "%config.countBadge%",
+          "default": "all",
+          "scope": "resource"
+        },
+        "vsr.checkoutType": {
+          "type": "string",
+          "enum": [
+            "all",
+            "local",
+            "tags",
+            "remote"
+          ],
+          "enumDescriptions": [
+            "%config.checkoutType.all%",
+            "%config.checkoutType.local%",
+            "%config.checkoutType.tags%",
+            "%config.checkoutType.remote%"
+          ],
+          "markdownDescription": "%config.checkoutType%",
+          "default": "all"
+        },
+        "vsr.ignoreLegacyWarning": {
+          "type": "boolean",
+          "description": "%config.ignoreLegacyWarning%",
+          "default": false
+        },
+        "vsr.ignoreMissingVsrWarning": {
+          "type": "boolean",
+          "description": "%config.ignoreMissingVsrWarning%",
+          "default": false
+        },
+        "vsr.ignoreLimitWarning": {
+          "type": "boolean",
+          "description": "%config.ignoreLimitWarning%",
+          "default": false
+        },
+        "vsr.defaultCloneDirectory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "%config.defaultCloneDirectory%"
+        },
+        "vsr.enableSmartCommit": {
+          "type": "boolean",
+          "scope": "resource",
+          "description": "%config.enableSmartCommit%",
+          "default": false
+        },
+        "vsr.smartCommitChanges": {
+          "type": "string",
+          "enum": [
+            "all",
+            "tracked"
+          ],
+          "enumDescriptions": [
+            "%config.smartCommitChanges.all%",
+            "%config.smartCommitChanges.tracked%"
+          ],
+          "scope": "resource",
+          "description": "%config.smartCommitChanges%",
+          "default": "all"
+        },
+        "vsr.suggestSmartCommit": {
+          "type": "boolean",
+          "scope": "resource",
+          "description": "%config.suggestSmartCommit%",
+          "default": true
+        },
+        "vsr.enableCommitSigning": {
+          "type": "boolean",
+          "scope": "resource",
+          "description": "%config.enableCommitSigning%",
+          "default": false
+        },
+        "vsr.confirmEmptyCommits": {
+          "type": "boolean",
+          "scope": "resource",
+          "description": "%config.confirmEmptyCommits%",
+          "default": true
+        },
+        "vsr.decorations.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.decorations.enabled%"
+        },
+        "vsr.enableStatusBarSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.enableStatusBarSync%",
+          "scope": "resource"
+        },
+        "vsr.promptToSaveFilesBeforeCommit": {
+          "type": "string",
+          "enum": [
+            "always",
+            "staged",
+            "never"
+          ],
+          "enumDescriptions": [
+            "%config.promptToSaveFilesBeforeCommit.always%",
+            "%config.promptToSaveFilesBeforeCommit.staged%",
+            "%config.promptToSaveFilesBeforeCommit.never%"
+          ],
+          "scope": "resource",
+          "default": "always",
+          "description": "%config.promptToSaveFilesBeforeCommit%"
+        },
+        "vsr.postCommitCommand": {
+          "type": "string",
+          "enum": [
+            "none",
+            "push",
+            "sync"
+          ],
+          "enumDescriptions": [
+            "%config.postCommitCommand.none%",
+            "%config.postCommitCommand.push%",
+            "%config.postCommitCommand.sync%"
+          ],
+          "markdownDescription": "%config.postCommitCommand%",
+          "scope": "resource",
+          "default": "none"
+        },
+        "vsr.showInlineOpenFileAction": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.showInlineOpenFileAction%"
+        },
+        "vsr.showPushSuccessNotification": {
+          "type": "boolean",
+          "description": "%config.showPushSuccessNotification%",
+          "default": false
+        },
+        "vsr.inputValidation": {
+          "type": "string",
+          "enum": [
+            "always",
+            "warn",
+            "off"
+          ],
+          "default": "warn",
+          "description": "%config.inputValidation%"
+        },
+        "vsr.inputValidationLength": {
+          "type": "number",
+          "default": 72,
+          "description": "%config.inputValidationLength%"
+        },
+        "vsr.inputValidationSubjectLength": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": 50,
+          "description": "%config.inputValidationSubjectLength%"
+        },
+        "vsr.detectSubmodules": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%config.detectSubmodules%"
+        },
+        "vsr.detectSubmodulesLimit": {
+          "type": "number",
+          "scope": "resource",
+          "default": 10,
+          "description": "%config.detectSubmodulesLimit%"
+        },
+        "vsr.alwaysShowStagedChangesResourceGroup": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": false,
+          "description": "%config.alwaysShowStagedChangesResourceGroup%"
+        },
+        "vsr.alwaysSignOff": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": false,
+          "description": "%config.alwaysSignOff%"
+        },
+        "vsr.ignoredRepositories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "window",
+          "description": "%config.ignoredRepositories%"
+        },
+        "vsr.scanRepositories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "resource",
+          "description": "%config.scanRepositories%"
+        },
+        "vsr.showProgress": {
+          "type": "boolean",
+          "description": "%config.showProgress%",
+          "default": true,
+          "scope": "resource"
+        },
+        "vsr.rebaseWhenSync": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": false,
+          "description": "%config.rebaseWhenSync%"
+        },
+        "vsr.fetchOnPull": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": false,
+          "description": "%config.fetchOnPull%"
+        },
+        "vsr.pullTags": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%config.pullTags%"
+        },
+        "vsr.autoStash": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": false,
+          "description": "%config.autoStash%"
+        },
+        "vsr.allowForcePush": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.allowForcePush%"
+        },
+        "vsr.useForcePushWithLease": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.useForcePushWithLease%"
+        },
+        "vsr.confirmForcePush": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.confirmForcePush%"
+        },
+        "vsr.openDiffOnClick": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%config.openDiffOnClick%"
+        },
+        "vsr.supportCancellation": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": false,
+          "description": "%config.supportCancellation%"
+        },
+        "vsr.branchSortOrder": {
+          "type": "string",
+          "enum": [
+            "committerdate",
+            "alphabetically"
+          ],
+          "default": "committerdate",
+          "description": "%config.branchSortOrder%"
+        },
+        "vsr.untrackedChanges": {
+          "type": "string",
+          "enum": [
+            "mixed",
+            "separate",
+            "hidden"
+          ],
+          "enumDescriptions": [
+            "%config.untrackedChanges.mixed%",
+            "%config.untrackedChanges.separate%",
+            "%config.untrackedChanges.hidden%"
+          ],
+          "default": "mixed",
+          "description": "%config.untrackedChanges%",
+          "scope": "resource"
+        },
+        "vsr.showCommitInput": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%config.showCommitInput%"
+        },
+        "vsr.terminalAuthentication": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%config.terminalAuthentication%"
+        },
+        "vsr.vsrhubAuthentication": {
+          "type": "boolean",
+          "scope": "resource",
+          "default": true,
+          "description": "%config.vsrhubAuthentication%"
+        }
+      }
+    },
+    "colors": [
+      {
+        "id": "vsrDecoration.addedResourceForeground",
+        "description": "%colors.added%",
+        "defaults": {
+          "light": "#587c0c",
+          "dark": "#81b88b",
+          "highContrast": "#1b5225"
+        }
+      },
+      {
+        "id": "vsrDecoration.modifiedResourceForeground",
+        "description": "%colors.modified%",
+        "defaults": {
+          "light": "#895503",
+          "dark": "#E2C08D",
+          "highContrast": "#E2C08D"
+        }
+      },
+      {
+        "id": "vsrDecoration.deletedResourceForeground",
+        "description": "%colors.deleted%",
+        "defaults": {
+          "light": "#ad0707",
+          "dark": "#c74e39",
+          "highContrast": "#c74e39"
+        }
+      },
+      {
+        "id": "vsrDecoration.untrackedResourceForeground",
+        "description": "%colors.untracked%",
+        "defaults": {
+          "light": "#007100",
+          "dark": "#73C991",
+          "highContrast": "#73C991"
+        }
+      },
+      {
+        "id": "vsrDecoration.ignoredResourceForeground",
+        "description": "%colors.ignored%",
+        "defaults": {
+          "light": "#8E8E90",
+          "dark": "#8C8C8C",
+          "highContrast": "#A7A8A9"
+        }
+      },
+      {
+        "id": "vsrDecoration.conflictingResourceForeground",
+        "description": "%colors.conflict%",
+        "defaults": {
+          "light": "#6c6cc4",
+          "dark": "#6c6cc4",
+          "highContrast": "#6c6cc4"
+        }
+      },
+      {
+        "id": "vsrDecoration.submoduleResourceForeground",
+        "description": "%colors.submodule%",
+        "defaults": {
+          "light": "#1258a7",
+          "dark": "#8db9e2",
+          "highContrast": "#8db9e2"
+        }
+      }
+    ],
+    "languages": [
+      {
+        "id": "vsr-commit",
+        "aliases": [
+          "Vsr Commit Message",
+          "vsr-commit"
+        ],
+        "filenames": [
+          "COMMIT_EDITMSG",
+          "MERGE_MSG"
+        ],
+        "configuration": "./languages/vsr-commit.language-configuration.json"
+      },
+      {
+        "id": "vsr-rebase",
+        "aliases": [
+          "Vsr Rebase Message",
+          "vsr-rebase"
+        ],
+        "filenames": [
+          "vsr-rebase-todo"
+        ],
+        "configuration": "./languages/vsr-rebase.language-configuration.json"
+      },
+      {
+        "id": "diff",
+        "aliases": [
+          "Diff",
+          "diff"
+        ],
+        "extensions": [
+          ".patch",
+          ".diff",
+          ".rej"
+        ],
+        "configuration": "./languages/diff.language-configuration.json"
+      },
+      {
+        "id": "ignore",
+        "aliases": [
+          "Ignore",
+          "ignore"
+        ],
+        "filenames": [
+          ".vsrignore_global",
+          ".vsrignore"
+        ],
+        "configuration": "./languages/ignore.language-configuration.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[vsr-commit]": {
+        "editor.rulers": [
+          72
+        ]
+      }
+    },
+    "viewsWelcome": [
+      {
+        "view": "scm",
+        "contents": "%view.workbench.scm.disabled%",
+        "when": "!config.vsr.enabled"
+      },
+      {
+        "view": "scm",
+        "contents": "%view.workbench.scm.missing%",
+        "when": "config.vsr.enabled && vsr.missing"
+      },
+      {
+        "view": "scm",
+        "contents": "%view.workbench.scm.empty%",
+        "when": "config.vsr.enabled && vsr.state == initialized && workbenchState == empty"
+      },
+      {
+        "view": "scm",
+        "contents": "%view.workbench.scm.folder%",
+        "when": "config.vsr.enabled && vsr.state == initialized && workbenchState == folder"
+      },
+      {
+        "view": "scm",
+        "contents": "%view.workbench.scm.workspace%",
+        "when": "config.vsr.enabled && vsr.state == initialized && workbenchState == workspace && workspaceFolderCount != 0"
+      },
+      {
+        "view": "scm",
+        "contents": "%view.workbench.scm.emptyWorkspace%",
+        "when": "config.vsr.enabled && vsr.state == initialized && workbenchState == workspace && workspaceFolderCount == 0"
+      },
+      {
+        "view": "explorer",
+        "contents": "%view.workbench.cloneRepository%",
+        "when": "config.vsr.enabled"
+      }
+    ]
+  },
+  "dependencies": {
+    "byline": "^5.0.0",
+    "file-type": "^7.2.0",
+    "iconv-lite": "^0.4.24",
+    "jschardet": "2.1.1",
+    "vscode-extension-telemetry": "0.1.1",
+    "vscode-nls": "^4.0.0",
+    "vscode-uri": "^2.0.0",
+    "which": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/byline": "4.2.31",
+    "@types/file-type": "^5.2.1",
+    "@types/mocha": "2.2.43",
+    "@types/node": "^12.12.31",
+    "@types/which": "^1.0.28",
+    "mocha": "^3.2.0",
+    "mocha-junit-reporter": "^1.23.3",
+    "mocha-multi-reporters": "^1.1.7",
+    "vscode": "^1.1.36"
+  }
+}
