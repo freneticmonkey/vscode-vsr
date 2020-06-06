@@ -17,13 +17,14 @@ export class TerminalEnvironmentManager {
 		}
 
 		this._enabled = enabled;
-		this.context.environmentVariableCollection.clear();
+		// TODO: This isn't using proposed API but this functionality still isn't available in the latest vscode API.  Determine how to handle this
+		// this.context.environmentVariableCollection.clear();
 
-		if (enabled) {
-			for (const name of Object.keys(this.env)) {
-				this.context.environmentVariableCollection.replace(name, this.env[name]);
-			}
-		}
+		// if (enabled) {
+		// 	for (const name of Object.keys(this.env)) {
+		// 		this.context.environmentVariableCollection.replace(name, this.env[name]);
+		// 	}
+		// }
 	}
 
 	constructor(private readonly context: ExtensionContext, private readonly env: { [key: string]: string }) {

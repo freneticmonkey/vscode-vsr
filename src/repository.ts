@@ -5,7 +5,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { CancellationToken, Command, Disposable, Event, EventEmitter, Memento, OutputChannel, ProgressLocation, ProgressOptions, scm, SourceControl, SourceControlInputBox, SourceControlInputBoxValidation, SourceControlInputBoxValidationType, SourceControlResourceDecorations, SourceControlResourceGroup, SourceControlResourceState, ThemeColor, Uri, window, workspace, WorkspaceEdit, Decoration } from 'vscode';
+import { CancellationToken, Command, Disposable, Event, EventEmitter, Memento, OutputChannel, ProgressLocation, ProgressOptions, ThemeColor, Uri, window, workspace, WorkspaceEdit } from 'vscode';
+import { scm, SourceControl, SourceControlInputBox, SourceControlResourceDecorations, SourceControlResourceGroup, SourceControlResourceState } from 'vscode';
+//import { SourceControlInputBoxValidation, SourceControlInputBoxValidationType } from 'vscode';
+//import { Decoration } from 'vscode';
 import * as nls from 'vscode-nls';
 import { Branch, Change, VsrErrorCodes, LogOptions, Ref, RefType, Remote, Status, CommitOptions, BranchQuery } from './api/vsr';
 import { AutoFetcher } from './autofetch';
@@ -25,6 +28,48 @@ const iconsRootPath = path.join(path.dirname(__dirname), 'resources', 'icons');
 
 function getIconUri(iconName: string, theme: string): Uri {
 	return Uri.file(path.join(iconsRootPath, theme, `${iconName}.svg`));
+}
+
+/**
+ * Represents the validation type of the Source Control input.
+ */
+enum SourceControlInputBoxValidationType {
+
+	/**
+	 * Something not allowed by the rules of a language or other means.
+	 */
+	Error = 0,
+
+	/**
+	 * Something suspicious but allowed.
+	 */
+	Warning = 1,
+
+	/**
+	 * Something to inform about but not a problem.
+	 */
+	Information = 2
+}
+
+interface SourceControlInputBoxValidation {
+
+	/**
+	 * The validation message to display.
+	 */
+	readonly message: string;
+
+	/**
+	 * The validation type.
+	 */
+	readonly type: SourceControlInputBoxValidationType;
+}
+
+export class Decoration {
+	letter?: string;
+	title?: string;
+	color?: ThemeColor;
+	priority?: number;
+	bubble?: boolean;
 }
 
 export const enum RepositoryState {
@@ -721,7 +766,9 @@ export class Repository implements Disposable {
 
 		this._sourceControl.acceptInputCommand = { command: 'git.commit', title: localize('commit', "Commit"), arguments: [this._sourceControl] };
 		this._sourceControl.quickDiffProvider = this;
-		this._sourceControl.inputBox.validateInput = this.validateInput.bind(this);
+		
+		// TODO: This is currently pointing at an internal proposed vscode api.  Fix this to use a public implementation
+		//this._sourceControl.inputBox.validateInput = this.validateInput.bind(this);
 		this.disposables.push(this._sourceControl);
 
 		this.updateInputBoxPlaceholder();

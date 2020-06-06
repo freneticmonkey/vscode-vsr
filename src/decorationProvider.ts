@@ -3,7 +3,10 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { window, workspace, Uri, Disposable, Event, EventEmitter, Decoration, DecorationProvider, ThemeColor } from 'vscode';
+import { window, workspace, Uri, Disposable, Event, EventEmitter, ThemeColor } from 'vscode';
+//import { Decoration, DecorationProvider } from 'vscode';
+import { Decoration } from './repository';
+import { CancellationToken, ProviderResult } from 'vscode';
 import * as path from 'path';
 import { Repository, GitResourceGroup } from './repository';
 import { Model } from './model';
@@ -12,6 +15,12 @@ import { filterEvent, dispose, anyEvent, fireEvent } from './util';
 import { VsrErrorCodes, Status } from './api/vsr';
 
 type Callback = { resolve: (status: boolean) => void, reject: (err: any) => void };
+
+interface DecorationProvider {
+	onDidChangeDecorations: Event<undefined | Uri | Uri[]>;
+	provideDecoration(uri: Uri, token: CancellationToken): ProviderResult<Decoration>;
+}
+
 
 class GitIgnoreDecorationProvider implements DecorationProvider {
 
@@ -26,7 +35,7 @@ class GitIgnoreDecorationProvider implements DecorationProvider {
 			model.onDidCloseRepository
 		));
 
-		this.disposables.push(window.registerDecorationProvider(this));
+		//this.disposables.push(window.registerDecorationProvider(this));
 	}
 
 	provideDecoration(uri: Uri): Promise<Decoration | undefined> {
@@ -103,7 +112,7 @@ class GitDecorationProvider implements DecorationProvider {
 
 	constructor(private repository: Repository) {
 		this.disposables.push(
-			window.registerDecorationProvider(this),
+			//window.registerDecorationProvider(this),
 			repository.onDidRunGitStatus(this.onDidRunGitStatus, this)
 		);
 	}
@@ -119,7 +128,7 @@ class GitDecorationProvider implements DecorationProvider {
 
 		const uris = new Set([...this.decorations.keys()].concat([...newDecorations.keys()]));
 		this.decorations = newDecorations;
-		this._onDidChangeDecorations.fire([...uris.values()].map(value => Uri.parse(value, true)));
+		this._onDidChangeDecorations.fire([...uris.values()].map(value => Uri.parse(value)));
 	}
 
 	private collectDecorationData(group: GitResourceGroup, bucket: Map<string, Decoration>): void {
