@@ -121,7 +121,7 @@ export class Resource implements SourceControlResourceState {
 	@memoize
 	get command(): Command {
 		return {
-			command: 'git.openResource',
+			command: 'vsr.openResource',
 			title: localize('open', "Open"),
 			arguments: [this]
 		};
@@ -458,7 +458,7 @@ class ProgressManager {
 	private disposable: IDisposable = EmptyDisposable;
 
 	constructor(private repository: Repository) {
-		const onDidChange = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git', Uri.file(this.repository.root)));
+		const onDidChange = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr', Uri.file(this.repository.root)));
 		onDidChange(_ => this.updateEnablement());
 		this.updateEnablement();
 	}
@@ -530,7 +530,7 @@ class FileEventLogger {
 
 		this.eventDisposable = combinedDisposable([
 			this.onWorkspaceWorkingTreeFileChange(uri => this.outputChannel.appendLine(`[debug] [wt] Change: ${uri.fsPath}`)),
-			this.onDotGitFileChange(uri => this.outputChannel.appendLine(`[debug] [.git] Change: ${uri.fsPath}`))
+			this.onDotGitFileChange(uri => this.outputChannel.appendLine(`[debug] [.vsr] Change: ${uri.fsPath}`))
 		]);
 	}
 
@@ -555,7 +555,7 @@ class DotGitWatcher implements IFileWatcher {
 		const rootWatcher = watch(repository.dotGit);
 		this.disposables.push(rootWatcher);
 
-		const filteredRootWatcher = filterEvent(rootWatcher.event, uri => !/\/\.git(\/index\.lock)?$/.test(uri.path));
+		const filteredRootWatcher = filterEvent(rootWatcher.event, uri => !/\/\.versionr(\/index\.lock)?$/.test(uri.path));
 		this.event = anyEvent(filteredRootWatcher, this.emitter.event);
 
 		repository.onDidRunGitStatus(this.updateTransientWatchers, this, this.disposables);
@@ -734,7 +734,7 @@ export class Repository implements Disposable {
 
 		const onWorkspaceFileChange = anyEvent(workspaceWatcher.onDidChange, workspaceWatcher.onDidCreate, workspaceWatcher.onDidDelete);
 		const onWorkspaceRepositoryFileChange = filterEvent(onWorkspaceFileChange, uri => isDescendant(repository.root, uri.fsPath));
-		const onWorkspaceWorkingTreeFileChange = filterEvent(onWorkspaceRepositoryFileChange, uri => !/\/\.git($|\/)/.test(uri.path));
+		const onWorkspaceWorkingTreeFileChange = filterEvent(onWorkspaceRepositoryFileChange, uri => !/\/\.versionr($|\/)/.test(uri.path));
 
 		let onDotGitFileChange: Event<Uri>;
 
@@ -747,7 +747,7 @@ export class Repository implements Disposable {
 				outputChannel.appendLine(`Failed to watch '${this.dotGit}', reverting to legacy API file watched. Some events might be lost.\n${err.stack || err}`);
 			}
 
-			onDotGitFileChange = filterEvent(onWorkspaceRepositoryFileChange, uri => /\/\.git($|\/)/.test(uri.path));
+			onDotGitFileChange = filterEvent(onWorkspaceRepositoryFileChange, uri => /\/\.versionr($|\/)/.test(uri.path));
 		}
 
 		// FS changes should trigger `git status`:
@@ -762,9 +762,9 @@ export class Repository implements Disposable {
 		this.disposables.push(new FileEventLogger(onWorkspaceWorkingTreeFileChange, onDotGitFileChange, outputChannel));
 
 		const root = Uri.file(repository.root);
-		this._sourceControl = scm.createSourceControl('git', 'Git', root);
+		this._sourceControl = scm.createSourceControl('vsr', 'Vsr', root);
 
-		this._sourceControl.acceptInputCommand = { command: 'git.commit', title: localize('commit', "Commit"), arguments: [this._sourceControl] };
+		this._sourceControl.acceptInputCommand = { command: 'vsr.commit', title: localize('commit', "Commit"), arguments: [this._sourceControl] };
 		this._sourceControl.quickDiffProvider = this;
 		
 		// TODO: This is currently pointing at an internal proposed vscode api.  Fix this to use a public implementation
@@ -784,14 +784,14 @@ export class Repository implements Disposable {
 			this.indexGroup.hideWhenEmpty = !config.get<boolean>('alwaysShowStagedChangesResourceGroup');
 		};
 
-		const onConfigListener = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.alwaysShowStagedChangesResourceGroup', root));
+		const onConfigListener = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr.alwaysShowStagedChangesResourceGroup', root));
 		onConfigListener(updateIndexGroupVisibility, this, this.disposables);
 		updateIndexGroupVisibility();
 
-		const onConfigListenerForBranchSortOrder = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.branchSortOrder', root));
+		const onConfigListenerForBranchSortOrder = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr.branchSortOrder', root));
 		onConfigListenerForBranchSortOrder(this.updateModelState, this, this.disposables);
 
-		const onConfigListenerForUntracked = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.untrackedChanges', root));
+		const onConfigListenerForUntracked = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr.untrackedChanges', root));
 		onConfigListenerForUntracked(this.updateModelState, this, this.disposables);
 
 		const updateInputBoxVisibility = () => {
@@ -799,7 +799,7 @@ export class Repository implements Disposable {
 			this._sourceControl.inputBox.visible = config.get<boolean>('showCommitInput', true);
 		};
 
-		const onConfigListenerForInputBoxVisibility = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.showCommitInput', root));
+		const onConfigListenerForInputBoxVisibility = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr.showCommitInput', root));
 		onConfigListenerForInputBoxVisibility(updateInputBoxVisibility, this, this.disposables);
 		updateInputBoxVisibility();
 
@@ -831,7 +831,7 @@ export class Repository implements Disposable {
 		const progressManager = new ProgressManager(this);
 		this.disposables.push(progressManager);
 
-		const onDidChangeCountBadge = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.countBadge', root));
+		const onDidChangeCountBadge = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr.countBadge', root));
 		onDidChangeCountBadge(this.setCountBadge, this, this.disposables);
 		this.setCountBadge();
 	}
@@ -1535,7 +1535,7 @@ export class Repository implements Disposable {
 		const config = workspace.getConfiguration('vsr');
 		const scopedConfig = workspace.getConfiguration('vsr', Uri.file(this.repository.root));
 		const shouldIgnore = config.get<boolean>('ignoreLimitWarning') === true;
-		const useIcons = !config.get<boolean>('decorations.enabled', true);
+		const useIcons = true;//!config.get<boolean>('decorations.enabled', true);
 		this.isRepositoryHuge = didHitLimit;
 
 		if (didHitLimit && !shouldIgnore && !this.didWarnAboutLimit) {
@@ -1586,13 +1586,23 @@ export class Repository implements Disposable {
 		}
 
 		const sort = config.get<'alphabetically' | 'committerdate'>('branchSortOrder') || 'alphabetically';
-		const [refs, remotes, submodules, rebaseCommit] = await Promise.all([this.repository.getRefs({ sort }), this.repository.getRemotes(), this.repository.getSubmodules(), this.getRebaseCommit()]);
+		const [
+			refs, 
+			remotes, 
+		//	submodules, 
+		//	rebaseCommit
+		] = await Promise.all([
+			this.repository.getRefs({ sort }), 
+			this.repository.getRemotes(), 
+		//	this.repository.getSubmodules(), 
+		//	this.getRebaseCommit(),
+		]);
 
 		this._HEAD = HEAD;
 		this._refs = refs!;
 		this._remotes = remotes!;
-		this._submodules = submodules!;
-		this.rebaseCommit = rebaseCommit;
+		// this._submodules = submodules!;
+		// this.rebaseCommit = rebaseCommit;
 
 		const untrackedChanges = scopedConfig.get<'mixed' | 'separate' | 'hidden'>('untrackedChanges');
 		const index: Resource[] = [];

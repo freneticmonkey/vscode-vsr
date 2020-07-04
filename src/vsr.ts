@@ -12,12 +12,13 @@ import { EventEmitter } from 'events';
 import * as iconv from 'iconv-lite';
 import * as filetype from 'file-type';
 import { assign, groupBy, IDisposable, toDisposable, dispose, mkdirp, readBytes, detectUnicodeEncoding, Encoding, onceEvent, splitInChunks, Limiter } from './util';
-import { CancellationToken, Progress, Uri } from 'vscode';
+import { CancellationToken, Progress, Uri, TextEditorLineNumbersStyle } from 'vscode';
 import { URI } from 'vscode-uri';
 import { detectEncoding } from './encoding';
 import { Ref, RefType, Branch, Remote, VsrErrorCodes, LogOptions, Change, Status, CommitOptions, BranchQuery } from './api/vsr';
 import * as byline from 'byline';
 import { StringDecoder } from 'string_decoder';
+import { listenerCount } from 'cluster';
 
 // https://github.com/microsoft/vscode/issues/65693
 const MAX_CLI_LENGTH = 30000;
@@ -584,70 +585,176 @@ export interface Commit {
 	commitDate?: Date;
 }
 
-export class GitStatusParser {
+interface Serializable<T> {
+	deserialize(input: Object): T;
+}
+
+export class JsonStatus implements Serializable<JsonStatus> {
+	Version: string = "";
+	Branch: JsonBranch = new JsonBranch;
+	Resources: JsonResource[] = [];
+
+	deserialize(input: any): JsonStatus {
+		this.Version = input.Version;
+		this.Branch = new JsonBranch().deserialize(input.Branch);
+		input.Resources.forEach((resource: any) => {
+			this.Resources.push(new JsonResource().deserialize(resource));
+		});
+		return this;
+	}
+}
+
+export class JsonBranch implements Serializable<JsonBranch> {
+	Name: string = "";
+	Revision: number = 0;
+	IsTerminus: boolean = false;
+	Heads: Array<JsonHead> = [];
+
+	deserialize(input: any): JsonBranch {
+		this.Name = input.Name;
+		this.Revision = input.Revision;
+		this.IsTerminus = input.IsTerminus;
+
+		input.Heads.forEach((head: any) => {
+			this.Heads.push(new JsonHead().deserialize(head));
+		});
+
+		return this;
+	}
+}
+
+export class JsonHead implements Serializable<JsonHead> {
+	ID: string = "";
+	Name: string = "";
+	Timestamp: string = "";
+	Author: string = "";
+
+	deserialize(input: any): JsonHead {
+		this.ID = input.ID;
+		this.Name = input.Name;
+		this.Timestamp = input.Timestamp;
+		this.Author = input.Author;
+		return this;
+	}
+}
+
+export class JsonResource implements Serializable<JsonResource> {
+	Staged: boolean = false;
+	Status: string = "";
+	StatusCode: string = "";
+	ReadOnly: boolean = false;
+	CurrentName: string = "";
+	CanonicalName: string = "";
+	IsFile: boolean = false;
+	IsDirectory: boolean = false;
+	Hash: string = "";
+	Length: number = 0;
+	Removed: boolean = false;
+
+	deserialize(input: any): JsonResource {
+		this.Staged = input.Staged;
+		this.Status = input.Status;
+		this.StatusCode = input.StatusCode;
+		this.ReadOnly = input.ReadOnly;
+		this.CurrentName = input.CurrentName;
+		this.CanonicalName = input.CanonicalName;
+		this.IsFile = input.IsFile;
+		this.IsDirectory = input.IsDirectory;
+		this.Hash = input.Hash;
+		this.Length = input.Length;
+		this.Removed = input.Removed;
+
+		return this;
+	}
+
+	toFileStatus(): IFileStatus[] {
+
+		let s = '';
+		let x = '';
+		let y = '';
+
+		switch (this.Status) {
+			case "modified": s = 'M'; break;
+			case "added": s = 'A'; break;
+			case "deleted": s = 'D'; break;
+			case "copied": s = 'C'; break;
+		}		
+
+		if (s !== '') {
+			if (this.Staged) {
+				x = s;
+			} else {
+				y = s;
+			}
+		} else {
+			switch (this.Status) {
+				case "renamed":
+					x = 'R';
+					y = '';
+					break;
+				case "unversioned":
+					x = '?';
+					y = '?';
+					break;
+				case "ignored":
+					x = '!';
+					y = '!';
+					break;
+			}
+		}
+
+		const statuses: IFileStatus[] = [];
+
+		statuses.push({
+			x: x,
+			y: y,
+			rename: (this.CurrentName !== this.CanonicalName) ? this.CurrentName : "",
+			path: this.CurrentName
+		});
+
+		// if (this.Status === "renamed")
+		// {
+		// 	statuses.push({
+		// 		x: x,
+		// 		y: y,
+		// 		rename: (this.CurrentName !== this.CanonicalName) ? this.CurrentName : "",
+		// 		path: this.CurrentName
+		// 	});
+		// }
+
+		return statuses;
+	}
+}
+
+export class VsrStatusParser {
 
 	private lastRaw = '';
-	private result: IFileStatus[] = [];
+	private fileStatus: IFileStatus[] = [];
+	// private branchStatus: Branch;
+	// private headsStatus: Ref[];
+	// private headStatus: Ref;
 
 	get status(): IFileStatus[] {
-		return this.result;
+		return this.fileStatus;
 	}
 
 	update(raw: string): void {
-		let i = 0;
-		let nextI: number | undefined;
 
-		raw = this.lastRaw + raw;
+		let status = JSON.parse(raw);
 
-		while ((nextI = this.parseEntry(raw, i)) !== undefined) {
-			i = nextI;
-		}
+		let vsrStatus = new JsonStatus().deserialize(status);
 
-		this.lastRaw = raw.substr(i);
+		//let vsrStatus: JsonStatus = Object.assign(new JsonStatus(), status);
+		
+		vsrStatus.Resources.forEach(resource => {
+			this.fileStatus.push( resource.toFileStatus()[0] );
+		});
+
+		//vsrStatus.Branch.
 	}
 
-	private parseEntry(raw: string, i: number): number | undefined {
-		if (i + 4 >= raw.length) {
-			return;
-		}
+	// TODO: Add support for processing Branches and heads, maybe memoize this as well
 
-		let lastIndex: number;
-		const entry: IFileStatus = {
-			x: raw.charAt(i++),
-			y: raw.charAt(i++),
-			rename: undefined,
-			path: ''
-		};
-
-		// space
-		i++;
-
-		if (entry.x === 'R' || entry.x === 'C') {
-			lastIndex = raw.indexOf('\0', i);
-
-			if (lastIndex === -1) {
-				return;
-			}
-
-			entry.rename = raw.substring(i, lastIndex);
-			i = lastIndex + 1;
-		}
-
-		lastIndex = raw.indexOf('\0', i);
-
-		if (lastIndex === -1) {
-			return;
-		}
-
-		entry.path = raw.substring(i, lastIndex);
-
-		// If path ends with slash, it must be a nested git repo
-		if (entry.path[entry.path.length - 1] !== '/') {
-			this.result.push(entry);
-		}
-
-		return lastIndex + 1;
-	}
 }
 
 export interface Submodule {
@@ -861,7 +968,7 @@ export class Repository {
 
 	async log(options?: LogOptions): Promise<Commit[]> {
 		const maxEntries = options?.maxEntries ?? 32;
-		const args = ['log', `-n${maxEntries}`, `--format=${COMMIT_FORMAT}`, '-z', '--'];
+		const args = ['log', `-n${maxEntries}`, `--format=${COMMIT_FORMAT}`, '-l', '--'];
 		if (options?.path) {
 			args.push(options.path);
 		}
@@ -876,7 +983,7 @@ export class Repository {
 	}
 
 	async logFile(uri: Uri, options?: LogFileOptions): Promise<Commit[]> {
-		const args = ['log', `--format=${COMMIT_FORMAT}`, '-z'];
+		const args = ['log', `--format=${COMMIT_FORMAT}`, '-j'];
 
 		if (options?.maxEntries && !options?.reverse) {
 			args.push(`-n${options.maxEntries}`);
@@ -1134,7 +1241,7 @@ export class Repository {
 	}
 
 	private async diffFiles(cached: boolean, ref?: string): Promise<Change[]> {
-		const args = ['diff', '--name-status', '-z', '--diff-filter=ADMR'];
+		const args = ['diff', '--name-status', '-j', '--diff-filter=ADMR'];
 		if (cached) {
 			args.push('--cached');
 		}
@@ -1735,15 +1842,15 @@ export class Repository {
 
 	getStatus(limit = 5000): Promise<{ status: IFileStatus[]; didHitLimit: boolean; }> {
 		return new Promise<{ status: IFileStatus[]; didHitLimit: boolean; }>((c, e) => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			const env = { GIT_OPTIONAL_LOCKS: '0' };
-			const child = this.stream(['status', '-z', '-u'], { env });
+			const child = this.stream(['status', '-j'], { env });
 
 			const onExit = (exitCode: number) => {
 				if (exitCode !== 0) {
 					const stderr = stderrData.join('');
 					return e(new GitError({
-						message: 'Failed to execute git',
+						message: 'Failed to execute vsr',
 						stderr,
 						exitCode,
 						gitErrorCode: getGitErrorCode(stderr),
@@ -1807,36 +1914,39 @@ export class Repository {
 	}
 
 	async getRefs(opts?: { sort?: 'alphabetically' | 'committerdate', contains?: string }): Promise<Ref[]> {
-		const args = ['for-each-ref', '--format', '%(refname) %(objectname)'];
+		let r: Ref[] = [];
+		return r;
 
-		if (opts && opts.sort && opts.sort !== 'alphabetically') {
-			args.push('--sort', `-${opts.sort}`);
-		}
+		// const args = ['for-each-ref', '--format', '%(refname) %(objectname)'];
 
-		if (opts?.contains) {
-			args.push('--contains', opts.contains);
-		}
+		// if (opts && opts.sort && opts.sort !== 'alphabetically') {
+		// 	args.push('--sort', `-${opts.sort}`);
+		// }
 
-		const result = await this.run(args);
+		// if (opts?.contains) {
+		// 	args.push('--contains', opts.contains);
+		// }
 
-		const fn = (line: string): Ref | null => {
-			let match: RegExpExecArray | null;
+		// const result = await this.run(args);
 
-			if (match = /^refs\/heads\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
-				return { name: match[1], commit: match[2], type: RefType.Head };
-			} else if (match = /^refs\/remotes\/([^/]+)\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
-				return { name: `${match[1]}/${match[2]}`, commit: match[3], type: RefType.RemoteHead, remote: match[1] };
-			} else if (match = /^refs\/tags\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
-				return { name: match[1], commit: match[2], type: RefType.Tag };
-			}
+		// const fn = (line: string): Ref | null => {
+		// 	let match: RegExpExecArray | null;
 
-			return null;
-		};
+		// 	if (match = /^refs\/heads\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
+		// 		return { name: match[1], commit: match[2], type: RefType.Head };
+		// 	} else if (match = /^refs\/remotes\/([^/]+)\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
+		// 		return { name: `${match[1]}/${match[2]}`, commit: match[3], type: RefType.RemoteHead, remote: match[1] };
+		// 	} else if (match = /^refs\/tags\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
+		// 		return { name: match[1], commit: match[2], type: RefType.Tag };
+		// 	}
 
-		return result.stdout.trim().split('\n')
-			.filter(line => !!line)
-			.map(fn)
-			.filter(ref => !!ref) as Ref[];
+		// 	return null;
+		// };
+
+		// return result.stdout.trim().split('\n')
+		// 	.filter(line => !!line)
+		// 	.map(fn)
+		// 	.filter(ref => !!ref) as Ref[];
 	}
 
 	async getStashes(): Promise<Stash[]> {
@@ -1852,35 +1962,56 @@ export class Repository {
 	}
 
 	async getRemotes(): Promise<Remote[]> {
-		const result = await this.run(['remote', '--verbose']);
-		const lines = result.stdout.trim().split('\n').filter(l => !!l);
-		const remotes: MutableRemote[] = [];
 
-		for (const line of lines) {
-			const parts = line.split(/\s/);
-			const [name, url, type] = parts;
+		const remotesResult = await this.run(['list-remotes']);
+		const trimmedOutput = remotesResult.stdout.trim();
 
-			let remote = remotes.find(r => r.name === name);
-
-			if (!remote) {
-				remote = { name, isReadOnly: false };
-				remotes.push(remote);
-			}
-
-			if (/fetch/i.test(type)) {
-				remote.fetchUrl = url;
-			} else if (/push/i.test(type)) {
-				remote.pushUrl = url;
-			} else {
-				remote.fetchUrl = url;
-				remote.pushUrl = url;
-			}
-
-			// https://github.com/Microsoft/vscode/issues/45271
-			remote.isReadOnly = remote.pushUrl === undefined || remote.pushUrl === 'no_push';
-		}
+		const remotes = trimmedOutput.split('\n')
+			.filter(line => !!line)
+			.map((line: string): MutableRemote | null => {
+				let match = line.match(/^Remote\s*"(\S+)"\s*is\s*(vsr:\/\/.*)$/);
+				if (match) {
+					return { 
+						name: match[1], 
+						pushUrl: match[2],
+						isReadOnly: false,
+					};
+				}
+				return null;
+			})
+			.filter(ref => !!ref) as MutableRemote[];
 
 		return remotes;
+
+		// const result = await this.run(['list-remotes', '-j']);
+		// const lines = result.stdout.trim().split('\n').filter(l => !!l);
+		// const remotes: MutableRemote[] = [];
+
+		// for (const line of lines) {
+		// 	const parts = line.split(/\s/);
+		// 	const [name, url, type] = parts;
+
+		// 	let remote = remotes.find(r => r.name === name);
+
+		// 	if (!remote) {
+		// 		remote = { name, isReadOnly: false };
+		// 		remotes.push(remote);
+		// 	}
+
+		// 	if (/fetch/i.test(type)) {
+		// 		remote.fetchUrl = url;
+		// 	} else if (/push/i.test(type)) {
+		// 		remote.pushUrl = url;
+		// 	} else {
+		// 		remote.fetchUrl = url;
+		// 		remote.pushUrl = url;
+		// 	}
+
+		// 	// https://github.com/Microsoft/vscode/issues/45271
+		// 	remote.isReadOnly = remote.pushUrl === undefined || remote.pushUrl === 'no_push';
+		// }
+
+		// return remotes;
 	}
 
 	async getBranch(name: string): Promise<Branch> {
@@ -1945,7 +2076,7 @@ export class Repository {
 	}
 
 	async getMergeMessage(): Promise<string | undefined> {
-		const mergeMsgPath = path.join(this.repositoryRoot, '.git', 'MERGE_MSG');
+		const mergeMsgPath = path.join(this.repositoryRoot, '.versionr', 'MERGE_MSG');
 
 		try {
 			const raw = await fs.readFile(mergeMsgPath, 'utf8');
@@ -1980,7 +2111,7 @@ export class Repository {
 	}
 
 	async getCommit(ref: string): Promise<Commit> {
-		const result = await this.run(['show', '-s', `--format=${COMMIT_FORMAT}`, '-z', ref]);
+		const result = await this.run(['show', '-s', `--format=${COMMIT_FORMAT}`, '-j', ref]);
 		const commits = parseGitCommits(result.stdout);
 		if (commits.length === 0) {
 			return Promise.reject<Commit>('bad commit format');

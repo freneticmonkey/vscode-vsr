@@ -28,7 +28,7 @@ export class TerminalEnvironmentManager {
 	}
 
 	constructor(private readonly context: ExtensionContext, private readonly env: { [key: string]: string }) {
-		this.disposable = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git'))
+		this.disposable = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr'))
 			(this.refresh, this);
 
 		this.refresh();

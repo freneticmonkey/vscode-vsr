@@ -40,13 +40,13 @@ export function toGitUri(uri: Uri, ref: string, options: GitUriOptions = {}): Ur
 	let path = uri.path;
 
 	if (options.replaceFileExtension) {
-		path = `${path}.git`;
+		path = `${path}.vsr`;
 	} else if (options.submoduleOf) {
 		path = `${path}.diff`;
 	}
 
 	return uri.with({
-		scheme: 'git',
+		scheme: 'vsr',
 		path,
 		query: JSON.stringify(params)
 	});

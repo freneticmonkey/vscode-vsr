@@ -171,7 +171,7 @@ export class GitDecorations {
 	constructor(private model: Model) {
 		this.disposables.push(new GitIgnoreDecorationProvider(model));
 
-		const onEnablementChange = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('git.decorations.enabled'));
+		const onEnablementChange = filterEvent(workspace.onDidChangeConfiguration, e => e.affectsConfiguration('vsr.decorations.enabled'));
 		onEnablementChange(this.update, this, this.disposables);
 		this.update();
 	}
