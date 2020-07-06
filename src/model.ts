@@ -96,7 +96,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 		this.disposables.push(fsWatcher);
 
 		const onWorkspaceChange = anyEvent(fsWatcher.onDidChange, fsWatcher.onDidCreate, fsWatcher.onDidDelete);
-		const onGitRepositoryChange = filterEvent(onWorkspaceChange, uri => /\/\.git/.test(uri.path));
+		const onGitRepositoryChange = filterEvent(onWorkspaceChange, uri => /\/\.versionr/.test(uri.path));
 		const onPossibleGitRepositoryChange = filterEvent(onGitRepositoryChange, uri => !this.getRepository(uri));
 		onPossibleGitRepositoryChange(this.onPossibleGitRepositoryChange, this, this.disposables);
 

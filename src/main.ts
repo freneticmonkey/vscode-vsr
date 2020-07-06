@@ -33,7 +33,40 @@ export async function deactivate(): Promise<any> {
 async function createModel(context: ExtensionContext, outputChannel: OutputChannel, disposables: Disposable[]): Promise<Model> {
 	const pathHint = workspace.getConfiguration('vsr').get<string>('path');
 	const info = await findVsr(pathHint, path => outputChannel.appendLine(localize('looking', "Looking for vsr in: {0}", path)));
+	
+	try {
+		// This is a little bit of a workaround, but this is the friendliest way to introduce this setting
+		if (workspace.workspaceFolders) {
+			var folder = workspace.workspaceFolders[0];
+			
+			var filePath = path.join(folder.uri.fsPath, '.vscode', 'settings.json');
 
+			// If the settings file does not exist
+			if (!fs.existsSync(filePath)) {
+				fs.mkdirSync(path.join(folder.uri.fsPath, '.vscode'));
+				
+				// Write a workspace settings file if one doesn't exist to exclude .versionr folder from 
+				// the explorer tree and file watch / search operations
+				const content = `{
+		"files.exclude": {
+			"**/.versionr": true
+		},
+		"files.watcherExclude": {
+			"**/.versionr/**": true
+		},
+		"search.exclude": {
+			"**/.versionr": true
+		}
+	}`;
+				fs.writeFileSync(filePath, content, 'utf8');
+			};
+		}
+
+
+	} catch (err) {
+		console.warn(err);
+	}
+		
 	const askpass = await Askpass.create(outputChannel, context.storagePath);
 	disposables.push(askpass);
 

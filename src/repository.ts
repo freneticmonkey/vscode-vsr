@@ -1535,6 +1535,7 @@ export class Repository implements Disposable {
 		const config = workspace.getConfiguration('vsr');
 		const scopedConfig = workspace.getConfiguration('vsr', Uri.file(this.repository.root));
 		const shouldIgnore = config.get<boolean>('ignoreLimitWarning') === true;
+		// FIXME: Figure out how to get the config working
 		const useIcons = true;//!config.get<boolean>('decorations.enabled', true);
 		this.isRepositoryHuge = didHitLimit;
 

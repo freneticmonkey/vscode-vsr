@@ -1300,7 +1300,7 @@
       ]
     },
     "configuration": {
-      "title": "Vsr",
+      "title": "Vsr (Versionr)",
       "properties": {
         "vsr.enabled": {
           "type": "boolean",
@@ -1677,12 +1677,6 @@
           "scope": "resource",
           "default": true,
           "description": "%config.terminalAuthentication%"
-        },
-        "vsr.githubAuthentication": {
-          "type": "boolean",
-          "scope": "resource",
-          "default": true,
-          "description": "%config.githubAuthentication%"
         }
       }
     },
