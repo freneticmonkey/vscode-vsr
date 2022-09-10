@@ -9,15 +9,16 @@ import * as os from 'os';
 import * as cp from 'child_process';
 import * as which from 'which';
 import { EventEmitter } from 'events';
-import iconv = require('iconv-lite');
+import * as iconv from 'iconv-lite';
 import * as filetype from 'file-type';
 import { assign, groupBy, IDisposable, toDisposable, dispose, mkdirp, readBytes, detectUnicodeEncoding, Encoding, onceEvent, splitInChunks, Limiter } from './util';
-import { CancellationToken, Progress, Uri } from 'vscode';
+import { CancellationToken, Progress, Uri, TextEditorLineNumbersStyle } from 'vscode';
 import { URI } from 'vscode-uri';
 import { detectEncoding } from './encoding';
 import { Ref, RefType, Branch, Remote, VsrErrorCodes, LogOptions, Change, Status, CommitOptions, BranchQuery } from './api/vsr';
 import * as byline from 'byline';
 import { StringDecoder } from 'string_decoder';
+import { listenerCount } from 'cluster';
 
 // https://github.com/microsoft/vscode/issues/65693
 const MAX_CLI_LENGTH = 30000;
@@ -428,60 +429,12 @@ export class Vsr {
 	async getRepositoryRoot(repositoryPath: string): Promise<string> {
 		const result = await this.exec(repositoryPath, ['root']);
 		return result.stdout.trim();
-
-		// const result = await this.exec(repositoryPath, ['rev-parse', '--show-toplevel']);
-
-		// // Keep trailing spaces which are part of the directory name
-		// const repoPath = path.normalize(result.stdout.trimLeft().replace(/(\r\n|\r|\n)+$/, ''));
-
-		// if (isWindows) {
-		// 	// On Git 2.25+ if you call `rev-parse --show-toplevel` on a mapped drive, instead of getting the mapped drive path back, you get the UNC path for the mapped drive.
-		// 	// So we will try to normalize it back to the mapped drive path, if possible
-		// 	const repoUri = Uri.file(repoPath);
-		// 	const pathUri = Uri.file(repositoryPath);
-		// 	if (repoUri.authority.length !== 0 && pathUri.authority.length === 0) {
-		// 		let match = /(?<=^\/?)([a-zA-Z])(?=:\/)/.exec(pathUri.path);
-		// 		if (match !== null) {
-		// 			const [, letter] = match;
-
-		// 			try {
-		// 				const networkPath = await new Promise<string>(resolve =>
-		// 					realpath.native(`${letter}:`, { encoding: 'utf8' }, (err, resolvedPath) =>
-		// 						// eslint-disable-next-line eqeqeq
-		// 						resolve(err != null ? undefined : resolvedPath),
-		// 					),
-		// 				);
-		// 				if (networkPath !== undefined) {
-		// 					return path.normalize(
-		// 						repoUri.fsPath.replace(
-		// 							networkPath,
-		// 							`${letter.toLowerCase()}:${networkPath.endsWith('\\') ? '\\' : ''}`
-		// 						),
-		// 					);
-		// 				}
-		// 			} catch { }
-		// 		}
-
-		// 		return path.normalize(pathUri.fsPath);
-		// 	}
-		// }
-
-		//return repoPath;
 	}
 
 	async getRepositoryDotVersionr(repositoryPath: string): Promise<string> {
 		const root = await this.getRepositoryRoot(repositoryPath);
 
 		return path.normalize(path.join(root, '.versionr'));
-
-		// const result = await this.exec(repositoryPath, ['rev-parse', '--git-dir']);
-		// let dotGitPath = result.stdout.trim();
-
-		// if (!path.isAbsolute(dotGitPath)) {
-		// 	dotGitPath = path.join(repositoryPath, dotGitPath);
-		// }
-
-		// return path.normalize(dotGitPath);
 	}
 
 	async exec(cwd: string, args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
@@ -584,70 +537,158 @@ export interface Commit {
 	commitDate?: Date;
 }
 
-export class GitStatusParser {
+interface Serializable<T> {
+	deserialize(input: Object): T;
+}
+
+export class JsonStatus implements Serializable<JsonStatus> {
+	Version: string = "";
+	Branch: JsonBranch = new JsonBranch;
+	Resources: JsonResource[] = [];
+
+	deserialize(input: any): JsonStatus {
+		this.Version = input.Version;
+		this.Branch = new JsonBranch().deserialize(input.Branch);
+		input.Resources.forEach((resource: any) => {
+			this.Resources.push(new JsonResource().deserialize(resource));
+		});
+		return this;
+	}
+}
+
+export class JsonBranch implements Serializable<JsonBranch> {
+	Name: string = "";
+	Revision: number = 0;
+	IsTerminus: boolean = false;
+	Heads: Array<JsonHead> = [];
+
+	deserialize(input: any): JsonBranch {
+		this.Name = input.Name;
+		this.Revision = input.Revision;
+		this.IsTerminus = input.IsTerminus;
+
+		input.Heads.forEach((head: any) => {
+			this.Heads.push(new JsonHead().deserialize(head));
+		});
+
+		return this;
+	}
+}
+
+export class JsonHead implements Serializable<JsonHead> {
+	ID: string = "";
+	Name: string = "";
+	Timestamp: string = "";
+	Author: string = "";
+
+	deserialize(input: any): JsonHead {
+		this.ID = input.ID;
+		this.Name = input.Name;
+		this.Timestamp = input.Timestamp;
+		this.Author = input.Author;
+		return this;
+	}
+}
+
+export class JsonResource implements Serializable<JsonResource> {
+	Staged: boolean = false;
+	Status: string = "";
+	StatusCode: string = "";
+	ReadOnly: boolean = false;
+	CurrentName: string = "";
+	CanonicalName: string = "";
+	IsFile: boolean = false;
+	IsDirectory: boolean = false;
+	Hash: string = "";
+	Length: number = 0;
+	Removed: boolean = false;
+
+	deserialize(input: any): JsonResource {
+		this.Staged = input.Staged;
+		this.Status = input.Status;
+		this.StatusCode = input.StatusCode;
+		this.ReadOnly = input.ReadOnly;
+		this.CurrentName = input.CurrentName;
+		this.CanonicalName = input.CanonicalName;
+		this.IsFile = input.IsFile;
+		this.IsDirectory = input.IsDirectory;
+		this.Hash = input.Hash;
+		this.Length = input.Length;
+		this.Removed = input.Removed;
+
+		return this;
+	}
+
+	toFileStatus(): IFileStatus {
+
+		// x = staged
+		// y = unstaged
+
+		let s = '';
+		let x = '';
+		let y = '';
+
+		if (this.Staged) {
+
+			switch (this.Status) {
+				case "modified": x = 'M'; break;
+				case "added": x = 'A'; break;
+				case "deleted": x = 'D'; break;
+				case "copied": x = 'C'; break;
+				case "renamed": x = 'R'; break;
+			}	
+
+		} else {
+			switch (this.Status) {
+				case "changed": y = 'M'; break;
+				case "added": y = 'A'; break;
+				case "deleted": y = 'D'; break;
+				case "copied": y = 'C'; break;
+				case "unversioned": x = '?'; y = '?'; break;
+				case "ignored": x = '!'; y = '!'; break;
+			}
+		}
+
+		return {
+			x: x,
+			y: y,
+			rename: (this.CurrentName !== this.CanonicalName) ? this.CurrentName : "",
+			path: this.CurrentName
+		};
+	}
+}
+
+export class VsrStatusParser {
 
 	private lastRaw = '';
-	private result: IFileStatus[] = [];
+	private fileStatus: IFileStatus[] = [];
+	private repoStatus: JsonStatus = new JsonStatus;
+
+	// private branchStatus: Branch;
+	// private headsStatus: Ref[];
+	// private headStatus: Ref;
 
 	get status(): IFileStatus[] {
-		return this.result;
+		return this.fileStatus;
+	}
+
+	get vsrStatus(): JsonStatus {
+		return this.vsrStatus;
 	}
 
 	update(raw: string): void {
-		let i = 0;
-		let nextI: number | undefined;
 
-		raw = this.lastRaw + raw;
+		let status = JSON.parse(raw);
 
-		while ((nextI = this.parseEntry(raw, i)) !== undefined) {
-			i = nextI;
-		}
+		this.repoStatus = new JsonStatus().deserialize(status);
 
-		this.lastRaw = raw.substr(i);
+		this.repoStatus.Resources.forEach(resource => {
+			this.fileStatus.push( resource.toFileStatus() );
+		});
 	}
 
-	private parseEntry(raw: string, i: number): number | undefined {
-		if (i + 4 >= raw.length) {
-			return;
-		}
+	// TODO: Add support for processing Branches and heads, maybe memoize this as well
 
-		let lastIndex: number;
-		const entry: IFileStatus = {
-			x: raw.charAt(i++),
-			y: raw.charAt(i++),
-			rename: undefined,
-			path: ''
-		};
-
-		// space
-		i++;
-
-		if (entry.x === 'R' || entry.x === 'C') {
-			lastIndex = raw.indexOf('\0', i);
-
-			if (lastIndex === -1) {
-				return;
-			}
-
-			entry.rename = raw.substring(i, lastIndex);
-			i = lastIndex + 1;
-		}
-
-		lastIndex = raw.indexOf('\0', i);
-
-		if (lastIndex === -1) {
-			return;
-		}
-
-		entry.path = raw.substring(i, lastIndex);
-
-		// If path ends with slash, it must be a nested git repo
-		if (entry.path[entry.path.length - 1] !== '/') {
-			this.result.push(entry);
-		}
-
-		return lastIndex + 1;
-	}
 }
 
 export interface Submodule {
@@ -861,7 +902,7 @@ export class Repository {
 
 	async log(options?: LogOptions): Promise<Commit[]> {
 		const maxEntries = options?.maxEntries ?? 32;
-		const args = ['log', `-n${maxEntries}`, `--format=${COMMIT_FORMAT}`, '-z', '--'];
+		const args = ['log', `-n${maxEntries}`, `--format=${COMMIT_FORMAT}`, '-l', '--'];
 		if (options?.path) {
 			args.push(options.path);
 		}
@@ -876,7 +917,7 @@ export class Repository {
 	}
 
 	async logFile(uri: Uri, options?: LogFileOptions): Promise<Commit[]> {
-		const args = ['log', `--format=${COMMIT_FORMAT}`, '-z'];
+		const args = ['log', `--format=${COMMIT_FORMAT}`, '-j'];
 
 		if (options?.maxEntries && !options?.reverse) {
 			args.push(`-n${options.maxEntries}`);
@@ -919,10 +960,20 @@ export class Repository {
 	}
 
 	async buffer(object: string): Promise<Buffer> {
-		const child = this.stream(['show', object]);
+
+		let cmd: string[] = ['show', '-d'];
+
+		// extract version if defined
+		const objectInfo = object.split(":");
+		if (objectInfo[0] !== "") {
+			cmd.push('-v',objectInfo[0]);
+		}
+		cmd.push(objectInfo[1]);
+
+		const child = this.stream(cmd);
 
 		if (!child.stdout) {
-			return Promise.reject<Buffer>('Can\'t open file from git');
+			return Promise.reject<Buffer>('Can\'t open file from vsr');
 		}
 
 		const { exitCode, stdout, stderr } = await exec(child);
@@ -944,39 +995,57 @@ export class Repository {
 	}
 
 	async getObjectDetails(treeish: string, path: string): Promise<{ mode: string, object: string, size: number }> {
-		if (!treeish) { // index
-			const elements = await this.lsfiles(path);
+		const parser = new VsrStatusParser();
 
-			if (elements.length === 0) {
-				throw new GitError({ message: 'Path not known by git', gitErrorCode: VsrErrorCodes.UnknownPath });
-			}
+		const { stdout } = await this.run(['status', '-j', '-a', sanitizePath(path)]);
+		parser.update(stdout);
 
-			const { mode, object } = elements[0];
-			const catFile = await this.run(['cat-file', '-s', object]);
-			const size = parseInt(catFile.stdout);
-
-			return { mode, object, size };
+		if (parser.status.length === 0) {
+			throw new GitError({ message: 'Path not known by vsr', gitErrorCode: VsrErrorCodes.UnknownPath });
 		}
 
-		const elements = await this.lstree(treeish, path);
+		let status = parser.vsrStatus.Resources[0];
+		// FIXME: This is totally cheating
+		let perms = "100644";
+		return {
+			mode: perms,
+			object: status.Hash,
+			size: status.Length
+		};
 
-		if (elements.length === 0) {
-			throw new GitError({ message: 'Path not known by git', gitErrorCode: VsrErrorCodes.UnknownPath });
-		}
+		// if (!treeish) { // index
+		// 	const elements = await this.lsfiles(path);
 
-		const { mode, object, size } = elements[0];
-		return { mode, object, size: parseInt(size) };
+		// 	if (elements.length === 0) {
+		// 		throw new GitError({ message: 'Path not known by git', gitErrorCode: VsrErrorCodes.UnknownPath });
+		// 	}
+
+		// 	const { mode, object } = elements[0];
+		// 	const catFile = await this.run(['cat-file', '-s', object]);
+		// 	const size = parseInt(catFile.stdout);
+
+		// 	return { mode, object, size };
+		// }
+
+		// const elements = await this.lstree(treeish, path);
+
+		// if (elements.length === 0) {
+		// 	throw new GitError({ message: 'Path not known by git', gitErrorCode: VsrErrorCodes.UnknownPath });
+		// }
+
+		// const { mode, object, size } = elements[0];
+		// return { mode, object, size: parseInt(size) };
 	}
 
-	async lstree(treeish: string, path: string): Promise<LsTreeElement[]> {
-		const { stdout } = await this.run(['ls-tree', '-l', treeish, '--', sanitizePath(path)]);
-		return parseLsTree(stdout);
-	}
+	// async lstree(treeish: string, path: string): Promise<LsTreeElement[]> {
+	// 	const { stdout } = await this.run(['ls-tree', '-l', treeish, '--', sanitizePath(path)]);
+	// 	return parseLsTree(stdout);
+	// }
 
-	async lsfiles(path: string): Promise<LsFilesElement[]> {
-		const { stdout } = await this.run(['ls-files', '--stage', '--', sanitizePath(path)]);
-		return parseLsFiles(stdout);
-	}
+	// async lsfiles(path: string): Promise<LsFilesElement[]> {
+	// 	const { stdout } = await this.run(['ls-files', '--stage', '--', sanitizePath(path)]);
+	// 	return parseLsFiles(stdout);
+	// }
 
 	async getGitRelativePath(ref: string, relativePath: string): Promise<string> {
 		const relativePathLowercase = relativePath.toLowerCase();
@@ -1134,7 +1203,7 @@ export class Repository {
 	}
 
 	private async diffFiles(cached: boolean, ref?: string): Promise<Change[]> {
-		const args = ['diff', '--name-status', '-z', '--diff-filter=ADMR'];
+		const args = ['diff', '--name-status', '-j', '--diff-filter=ADMR'];
 		if (cached) {
 			args.push('--cached');
 		}
@@ -1735,15 +1804,15 @@ export class Repository {
 
 	getStatus(limit = 5000): Promise<{ status: IFileStatus[]; didHitLimit: boolean; }> {
 		return new Promise<{ status: IFileStatus[]; didHitLimit: boolean; }>((c, e) => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			const env = { GIT_OPTIONAL_LOCKS: '0' };
-			const child = this.stream(['status', '-z', '-u'], { env });
+			const child = this.stream(['status', '-j'], { env });
 
 			const onExit = (exitCode: number) => {
 				if (exitCode !== 0) {
 					const stderr = stderrData.join('');
 					return e(new GitError({
-						message: 'Failed to execute git',
+						message: 'Failed to execute vsr',
 						stderr,
 						exitCode,
 						gitErrorCode: getGitErrorCode(stderr),
@@ -1780,21 +1849,27 @@ export class Repository {
 
 	async getHEAD(): Promise<Ref> {
 		try {
-			const result = await this.run(['symbolic-ref', '--short', 'HEAD']);
-
+			const result = await this.run(['info']);
+			
 			if (!result.stdout) {
 				throw new Error('Not in a branch');
 			}
 
-			return { name: result.stdout.trim(), commit: undefined, type: RefType.Head };
-		} catch (err) {
-			const result = await this.run(['rev-parse', 'HEAD']);
-
-			if (!result.stdout) {
+			// Parse HEAD version and branch name.  e.g
+			// Version deeff0de-8df7-4267-bf4e-0c058f541e9c on branch "master" (rev 4)
+			let match = result.stdout.match(/Version (\S+) on branch "(\S+)"/);
+			if (match) {
+				return { 
+					name: match[2], 
+					commit: match[1].trim(),
+					type: RefType.Head 
+				};
+			} else {
 				throw new Error('Error parsing HEAD');
 			}
 
-			return { name: undefined, commit: result.stdout.trim(), type: RefType.Head };
+		} catch (err) {
+			throw new Error('Error parsing HEAD');
 		}
 	}
 
@@ -1807,36 +1882,39 @@ export class Repository {
 	}
 
 	async getRefs(opts?: { sort?: 'alphabetically' | 'committerdate', contains?: string }): Promise<Ref[]> {
-		const args = ['for-each-ref', '--format', '%(refname) %(objectname)'];
+		let r: Ref[] = [];
+		return r;
 
-		if (opts && opts.sort && opts.sort !== 'alphabetically') {
-			args.push('--sort', `-${opts.sort}`);
-		}
+		// const args = ['for-each-ref', '--format', '%(refname) %(objectname)'];
 
-		if (opts?.contains) {
-			args.push('--contains', opts.contains);
-		}
+		// if (opts && opts.sort && opts.sort !== 'alphabetically') {
+		// 	args.push('--sort', `-${opts.sort}`);
+		// }
 
-		const result = await this.run(args);
+		// if (opts?.contains) {
+		// 	args.push('--contains', opts.contains);
+		// }
 
-		const fn = (line: string): Ref | null => {
-			let match: RegExpExecArray | null;
+		// const result = await this.run(args);
 
-			if (match = /^refs\/heads\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
-				return { name: match[1], commit: match[2], type: RefType.Head };
-			} else if (match = /^refs\/remotes\/([^/]+)\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
-				return { name: `${match[1]}/${match[2]}`, commit: match[3], type: RefType.RemoteHead, remote: match[1] };
-			} else if (match = /^refs\/tags\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
-				return { name: match[1], commit: match[2], type: RefType.Tag };
-			}
+		// const fn = (line: string): Ref | null => {
+		// 	let match: RegExpExecArray | null;
 
-			return null;
-		};
+		// 	if (match = /^refs\/heads\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
+		// 		return { name: match[1], commit: match[2], type: RefType.Head };
+		// 	} else if (match = /^refs\/remotes\/([^/]+)\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
+		// 		return { name: `${match[1]}/${match[2]}`, commit: match[3], type: RefType.RemoteHead, remote: match[1] };
+		// 	} else if (match = /^refs\/tags\/([^ ]+) ([0-9a-f]{40})$/.exec(line)) {
+		// 		return { name: match[1], commit: match[2], type: RefType.Tag };
+		// 	}
 
-		return result.stdout.trim().split('\n')
-			.filter(line => !!line)
-			.map(fn)
-			.filter(ref => !!ref) as Ref[];
+		// 	return null;
+		// };
+
+		// return result.stdout.trim().split('\n')
+		// 	.filter(line => !!line)
+		// 	.map(fn)
+		// 	.filter(ref => !!ref) as Ref[];
 	}
 
 	async getStashes(): Promise<Stash[]> {
@@ -1852,35 +1930,55 @@ export class Repository {
 	}
 
 	async getRemotes(): Promise<Remote[]> {
-		const result = await this.run(['remote', '--verbose']);
-		const lines = result.stdout.trim().split('\n').filter(l => !!l);
-		const remotes: MutableRemote[] = [];
 
-		for (const line of lines) {
-			const parts = line.split(/\s/);
-			const [name, url, type] = parts;
-
-			let remote = remotes.find(r => r.name === name);
-
-			if (!remote) {
-				remote = { name, isReadOnly: false };
-				remotes.push(remote);
-			}
-
-			if (/fetch/i.test(type)) {
-				remote.fetchUrl = url;
-			} else if (/push/i.test(type)) {
-				remote.pushUrl = url;
-			} else {
-				remote.fetchUrl = url;
-				remote.pushUrl = url;
-			}
-
-			// https://github.com/Microsoft/vscode/issues/45271
-			remote.isReadOnly = remote.pushUrl === undefined || remote.pushUrl === 'no_push';
-		}
+		const remotesResult = await this.run(['list-remotes']);
+		const trimmedOutput = remotesResult.stdout.trim();
+		let remotes = trimmedOutput.split('\n')
+			.filter(line => !!line)
+			.map((line: string): Remote | null => {
+				let match = line.match(/^Remote\s+"(\S+)"\s+is\s+(vsr:\/\/.*)$/);
+				if (match) {
+					return {
+						name: match[1],
+						pushUrl: match[2],
+						isReadOnly: false,
+					};
+				}
+				return null;
+			})
+			.filter(ref => !!ref) as Remote[];
 
 		return remotes;
+
+		// const result = await this.run(['list-remotes', '-j']);
+		// const lines = result.stdout.trim().split('\n').filter(l => !!l);
+		// const remotes: MutableRemote[] = [];
+
+		// for (const line of lines) {
+		// 	const parts = line.split(/\s/);
+		// 	const [name, url, type] = parts;
+
+		// 	let remote = remotes.find(r => r.name === name);
+
+		// 	if (!remote) {
+		// 		remote = { name, isReadOnly: false };
+		// 		remotes.push(remote);
+		// 	}
+
+		// 	if (/fetch/i.test(type)) {
+		// 		remote.fetchUrl = url;
+		// 	} else if (/push/i.test(type)) {
+		// 		remote.pushUrl = url;
+		// 	} else {
+		// 		remote.fetchUrl = url;
+		// 		remote.pushUrl = url;
+		// 	}
+
+		// 	// https://github.com/Microsoft/vscode/issues/45271
+		// 	remote.isReadOnly = remote.pushUrl === undefined || remote.pushUrl === 'no_push';
+		// }
+
+		// return remotes;
 	}
 
 	async getBranch(name: string): Promise<Branch> {
@@ -1888,47 +1986,62 @@ export class Repository {
 			return this.getHEAD();
 		}
 
-		let result = await this.run(['rev-parse', name]);
+		let result = await this.run(['list-branches','-p', name]);
 
-		if (!result.stdout && /^@/.test(name)) {
-			const symbolicFullNameResult = await this.run(['rev-parse', '--symbolic-full-name', name]);
-			name = symbolicFullNameResult.stdout.trim();
-
-			result = await this.run(['rev-parse', name]);
-		}
-
-		if (!result.stdout) {
+		if (!result.stdout || (!result.stdout && /^@/.test(name))) {
 			return Promise.reject<Branch>(new Error('No such branch'));
 		}
 
-		const commit = result.stdout.trim();
+		let commit = "";
+		let match = result.stdout.match(/(\S+)\s-\s(\S+).*/);
+		if (match) {
+			commit = match[2].trim();
+		} else {
+			return Promise.reject<Branch>(new Error('Error parsing branch info'));
+		}
 
 		try {
-			const res2 = await this.run(['rev-parse', '--symbolic-full-name', name + '@{u}']);
-			const fullUpstream = res2.stdout.trim();
-			const match = /^refs\/remotes\/([^/]+)\/(.+)$/.exec(fullUpstream);
+			const aheadResult = await this.run(['ahead', '--branch', name]);
 
+			const upstreamInfo = aheadResult.stdout.trim();
+			const lines = upstreamInfo.split('\n');
+			const statusLine = lines[lines.length-1];
+
+			let remote = "";
+			match = lines[0].match(/Connected to Remote:\s(\S+).*/);
 			if (!match) {
-				throw new Error(`Could not parse upstream branch: ${fullUpstream}`);
-			}
-
-			const upstream = { remote: match[1], name: match[2] };
-			const res3 = await this.run(['rev-list', '--left-right', name + '...' + fullUpstream]);
-
-			let ahead = 0, behind = 0;
-			let i = 0;
-
-			while (i < res3.stdout.length) {
-				switch (res3.stdout.charAt(i)) {
-					case '<': ahead++; break;
-					case '>': behind++; break;
-					default: i++; break;
+				// Check if there is a remote specified
+				match = lines[0].match(/No provider connected to remote URL/);
+				if (!match) {
+					throw new Error(`Could not parse upstream branch: ${name}`);
 				}
+				// If there isn't an upstream, just return the current branch info
+				return { name, type: RefType.Head, commit };
+			}
+			remote = match[0];
 
-				while (res3.stdout.charAt(i++) !== '\n') { /* no-op */ }
+			match = statusLine.match(/Remote\s-\s(\S+)\s+-\sVersion:\s(\S+)\s\((\S+)\).*/);
+			if (!match) {
+				throw new Error(`Could not parse upstream branch status: ${name}`);
 			}
 
-			return { name, type: RefType.Head, commit, upstream, ahead, behind };
+			// FIXME: This is not returning the actual values because walking the history to 
+			// calculate the version counts hasn't been implemented in Versionr
+			let ahead = 0, behind = 0;
+			switch (match[3]) {
+				case 'ahead': ahead = 1; break;
+				case 'behind': behind = 1; break;
+			}
+
+			let upstream = { remote: remote, name: name };
+			return { 
+				name, 
+				type: RefType.Head, 
+				commit, 
+				upstream,
+				ahead, 
+				behind 
+			};
 		} catch (err) {
 			return { name, type: RefType.Head, commit };
 		}
@@ -1945,7 +2058,7 @@ export class Repository {
 	}
 
 	async getMergeMessage(): Promise<string | undefined> {
-		const mergeMsgPath = path.join(this.repositoryRoot, '.git', 'MERGE_MSG');
+		const mergeMsgPath = path.join(this.repositoryRoot, '.versionr', 'MERGE_MSG');
 
 		try {
 			const raw = await fs.readFile(mergeMsgPath, 'utf8');
@@ -1956,6 +2069,7 @@ export class Repository {
 	}
 
 	async getCommitTemplate(): Promise<string> {
+		return '';
 		try {
 			const result = await this.run(['config', '--get', 'commit.template']);
 
@@ -1980,7 +2094,7 @@ export class Repository {
 	}
 
 	async getCommit(ref: string): Promise<Commit> {
-		const result = await this.run(['show', '-s', `--format=${COMMIT_FORMAT}`, '-z', ref]);
+		const result = await this.run(['show', '-s', `--format=${COMMIT_FORMAT}`, '-j', ref]);
 		const commits = parseGitCommits(result.stdout);
 		if (commits.length === 0) {
 			return Promise.reject<Commit>('bad commit format');

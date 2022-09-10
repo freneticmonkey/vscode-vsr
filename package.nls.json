@@ -97,7 +97,7 @@
 	"config.branchValidationRegex": "A regular expression to validate new branch names.",
 	"config.branchWhitespaceChar": "The character to replace whitespace in new branch names.",
 	"config.ignoreLegacyWarning": "Ignores the legacy Git warning.",
-	"config.ignoreMissingGitWarning": "Ignores the warning when Git is missing.",
+	"config.ignoreMissingVsrWarning": "Ignores the warning when Vsr is missing.",
 	"config.ignoreLimitWarning": "Ignores the warning when there are too many changes in a repository.",
 	"config.defaultCloneDirectory": "The default location to clone a git repository.",
 	"config.enableSmartCommit": "Commit all changes when there are no staged changes.",

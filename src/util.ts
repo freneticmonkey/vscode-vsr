@@ -10,7 +10,7 @@ import { promises as fs, createReadStream } from 'fs';
 import * as byline from 'byline';
 
 export function log(...args: any[]): void {
-	console.log.apply(console, ['git:', ...args]);
+	console.log.apply(console, ['vsr:', ...args]);
 }
 
 export interface IDisposable {

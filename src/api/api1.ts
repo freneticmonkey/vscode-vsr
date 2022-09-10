@@ -5,8 +5,9 @@
 
 import { Model } from '../model';
 import { Repository as BaseRepository, Resource } from '../repository';
-import { InputBox, Vsr, API, Repository, Remote, RepositoryState, Branch, Ref, Extern, Commit, Change, RepositoryUIState, Status, LogOptions, APIState, CommitOptions, VsrExtension, RefType, RemoteSourceProvider, CredentialsProvider, BranchQuery } from './vsr';
-import { Event, SourceControlInputBox, Uri, SourceControl, Disposable, commands } from 'vscode';
+import { InputBox, Vsr, API, Repository, Remote, RepositoryState, Branch, Ref, Extern, Commit, Change, RepositoryUIState, Status, LogOptions } from './vsr';
+import { APIState, CommitOptions, VsrExtension, RefType, RemoteSourceProvider, CredentialsProvider, BranchQuery } from './vsr';
+import { Event, SourceControlInputBox, Uri, SourceControl, Disposable, commands, EventEmitter } from 'vscode';
 import { mapEvent } from '../util';
 import { toGitUri } from '../uri';
 
@@ -45,9 +46,10 @@ export class ApiRepositoryState implements RepositoryState {
 
 export class ApiRepositoryUIState implements RepositoryUIState {
 
-	get selected(): boolean { return this._sourceControl.selected; }
+	// TODO: More proposed API disabling. This could be terrible but there's only one way to find out.
+	get selected(): boolean { return true; }//this._sourceControl.selected; }
 
-	readonly onDidChange: Event<void> = mapEvent<boolean, void>(this._sourceControl.onDidChangeSelection, () => null);
+	readonly onDidChange: Event<void> = new EventEmitter<void>().event; //mapEvent<boolean, void>(this._sourceControl.onDidChangeSelection, () => null);
 
 	constructor(private _sourceControl: SourceControl) { }
 }
@@ -310,12 +312,12 @@ function getStatus(status: Status): string {
 
 export function registerAPICommands(extension: VsrExtension): Disposable {
 	return Disposable.from(
-		commands.registerCommand('git.api.getRepositories', () => {
+		commands.registerCommand('vsr.api.getRepositories', () => {
 			const api = extension.getAPI(1);
 			return api.repositories.map(r => r.rootUri.toString());
 		}),
 
-		commands.registerCommand('git.api.getRepositoryState', (uri: string) => {
+		commands.registerCommand('vsr.api.getRepositoryState', (uri: string) => {
 			const api = extension.getAPI(1);
 			const repository = api.getRepository(Uri.parse(uri));
 

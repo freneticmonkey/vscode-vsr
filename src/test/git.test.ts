@@ -4,25 +4,25 @@
  *--------------------------------------------------------------------------------------------*/
 
 import 'mocha';
-import { GitStatusParser, parseGitCommits, parseGitmodules, parseLsTree, parseLsFiles } from '../vsr';
+import { VsrStatusParser, parseGitCommits, parseGitmodules, parseLsTree, parseLsFiles } from '../vsr';
 import * as assert from 'assert';
 import { splitInChunks } from '../util';
 
 suite('git', () => {
 	suite('GitStatusParser', () => {
 		test('empty parser', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			assert.deepEqual(parser.status, []);
 		});
 
 		test('empty parser 2', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('');
 			assert.deepEqual(parser.status, []);
 		});
 
 		test('simple', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file.txt\0');
 			assert.deepEqual(parser.status, [
 				{ path: 'file.txt', rename: undefined, x: '?', y: '?' }
@@ -30,7 +30,7 @@ suite('git', () => {
 		});
 
 		test('simple 2', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file.txt\0');
 			parser.update('?? file2.txt\0');
 			parser.update('?? file3.txt\0');
@@ -42,7 +42,7 @@ suite('git', () => {
 		});
 
 		test('empty lines', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('');
 			parser.update('?? file.txt\0');
 			parser.update('');
@@ -59,7 +59,7 @@ suite('git', () => {
 		});
 
 		test('combined', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file.txt\0?? file2.txt\0?? file3.txt\0');
 			assert.deepEqual(parser.status, [
 				{ path: 'file.txt', rename: undefined, x: '?', y: '?' },
@@ -69,7 +69,7 @@ suite('git', () => {
 		});
 
 		test('split 1', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file.txt\0?? file2');
 			parser.update('.txt\0?? file3.txt\0');
 			assert.deepEqual(parser.status, [
@@ -80,7 +80,7 @@ suite('git', () => {
 		});
 
 		test('split 2', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file.txt');
 			parser.update('\0?? file2.txt\0?? file3.txt\0');
 			assert.deepEqual(parser.status, [
@@ -91,7 +91,7 @@ suite('git', () => {
 		});
 
 		test('split 3', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file.txt\0?? file2.txt\0?? file3.txt');
 			parser.update('\0');
 			assert.deepEqual(parser.status, [
@@ -102,7 +102,7 @@ suite('git', () => {
 		});
 
 		test('rename', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('R  newfile.txt\0file.txt\0?? file2.txt\0?? file3.txt\0');
 			assert.deepEqual(parser.status, [
 				{ path: 'file.txt', rename: 'newfile.txt', x: 'R', y: ' ' },
@@ -112,7 +112,7 @@ suite('git', () => {
 		});
 
 		test('rename split', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('R  newfile.txt\0fil');
 			parser.update('e.txt\0?? file2.txt\0?? file3.txt\0');
 			assert.deepEqual(parser.status, [
@@ -123,7 +123,7 @@ suite('git', () => {
 		});
 
 		test('rename split 3', () => {
-			const parser = new GitStatusParser();
+			const parser = new VsrStatusParser();
 			parser.update('?? file2.txt\0R  new');
 			parser.update('file.txt\0fil');
 			parser.update('e.txt\0?? file3.txt\0');

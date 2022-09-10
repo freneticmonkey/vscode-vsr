@@ -6,8 +6,10 @@
 import { lstat, Stats } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { commands, Disposable, LineChange, MessageOptions, OutputChannel, Position, ProgressLocation, QuickPickItem, Range, SourceControlResourceState, TextDocumentShowOptions, TextEditor, Uri, ViewColumn, window, workspace, WorkspaceEdit, WorkspaceFolder, TimelineItem, env, QuickPick } from 'vscode';
-import TelemetryReporter from 'vscode-extension-telemetry';
+import { commands, Disposable, MessageOptions, OutputChannel, Position, ProgressLocation, QuickPickItem, Range, SourceControlResourceState, TextDocumentShowOptions, TextEditor } from 'vscode';
+import { Uri, ViewColumn, window, workspace, WorkspaceEdit, WorkspaceFolder, QuickPick } from 'vscode';
+//import { LineChange } from 'vscode';
+import { LineChange } from './staging';
 import * as nls from 'vscode-nls';
 import { Branch, VsrErrorCodes, Ref, RefType, Status, CommitOptions, RemoteSourceProvider, RemoteSource } from './api/vsr';
 import { ForcePushMode, Vsr, Stash } from './vsr';
@@ -17,7 +19,6 @@ import { applyLineChanges, getModifiedRange, intersectDiffWithRange, invertLineC
 import { fromGitUri, toGitUri, isGitUri } from './uri';
 import { grep, isDescendant, pathEquals } from './util';
 import { Log, LogLevel } from './log';
-import { GitTimelineItem } from './timelineProvider';
 import { throttle, debounce } from './decorators';
 import { ApiRepository } from './api/api1';
 
@@ -308,20 +309,19 @@ export class CommandCenter {
 		private git: Vsr,
 		private model: Model,
 		private outputChannel: OutputChannel,
-		private telemetryReporter: TelemetryReporter
 	) {
 		this.disposables = Commands.map(({ commandId, key, method, options }) => {
 			const command = this.createCommand(commandId, key, method, options);
 
-			if (options.diff) {
-				return commands.registerDiffInformationCommand(commandId, command);
-			} else {
+			// if (options.diff) {
+			// 	return commands.registerDiffInformationCommand(commandId, command);
+			// } else {
 				return commands.registerCommand(commandId, command);
-			}
+			// }
 		});
 	}
 
-	@command('git.setLogLevel')
+	@command('vsr.setLogLevel')
 	async setLogLevel(): Promise<void> {
 		const createItem = (logLevel: LogLevel) => ({
 			label: LogLevel[logLevel],
@@ -351,12 +351,12 @@ export class CommandCenter {
 		this.outputChannel.appendLine(localize('changed', "Log level changed to: {0}", LogLevel[Log.logLevel]));
 	}
 
-	@command('git.refresh', { repository: true })
+	@command('vsr.refresh', { repository: true })
 	async refresh(repository: Repository): Promise<void> {
 		await repository.status();
 	}
 
-	@command('git.openResource')
+	@command('vsr.openResource')
 	async openResource(resource: Resource, preserveFocus: boolean): Promise<void> {
 		const repository = this.model.getRepository(resource.resourceUri);
 
@@ -518,7 +518,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.clone')
+	@command('vsr.clone')
 	async clone(url?: string, parentPath?: string): Promise<void> {
 		if (!url) {
 			const quickpick = window.createQuickPick<(QuickPickItem & { provider?: RemoteSourceProvider, url?: string })>();
@@ -574,7 +574,6 @@ export class CommandCenter {
 					"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 				}
 			*/
-			this.telemetryReporter.sendTelemetryEvent('clone', { outcome: 'no_URL' });
 			return;
 		}
 
@@ -599,7 +598,6 @@ export class CommandCenter {
 						"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 					}
 				*/
-				this.telemetryReporter.sendTelemetryEvent('clone', { outcome: 'no_directory' });
 				return;
 			}
 
@@ -639,7 +637,6 @@ export class CommandCenter {
 					"openFolder": { "classification": "SystemMetaData", "purpose": "PerformanceAndHealth", "isMeasurement": true }
 				}
 			*/
-			this.telemetryReporter.sendTelemetryEvent('clone', { outcome: 'success' }, { openFolder: openFolder ? 1 : 0 });
 
 			const uri = Uri.file(repositoryPath);
 
@@ -657,7 +654,6 @@ export class CommandCenter {
 						"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 					}
 				*/
-				this.telemetryReporter.sendTelemetryEvent('clone', { outcome: 'directory_not_empty' });
 			} else if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
 				return;
 			} else {
@@ -666,14 +662,13 @@ export class CommandCenter {
 						"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 					}
 				*/
-				this.telemetryReporter.sendTelemetryEvent('clone', { outcome: 'error' });
 			}
 
 			throw err;
 		}
 	}
 
-	@command('git.init')
+	@command('vsr.init')
 	async init(skipFolderPrompt = false): Promise<void> {
 		let repositoryPath: string | undefined = undefined;
 		let askToOpen = true;
@@ -767,7 +762,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.openRepository', { repository: false })
+	@command('vsr.openRepository', { repository: false })
 	async openRepository(path?: string): Promise<void> {
 		if (!path) {
 			const result = await window.showOpenDialog({
@@ -788,12 +783,12 @@ export class CommandCenter {
 		await this.model.openRepository(path);
 	}
 
-	@command('git.close', { repository: true })
+	@command('vsr.close', { repository: true })
 	async close(repository: Repository): Promise<void> {
 		this.model.close(repository);
 	}
 
-	@command('git.openFile')
+	@command('vsr.openFile')
 	async openFile(arg?: Resource | Uri, ...resourceStates: SourceControlResourceState[]): Promise<void> {
 		const preserveFocus = arg instanceof Resource;
 
@@ -857,12 +852,12 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.openFile2')
+	@command('vsr.openFile2')
 	async openFile2(arg?: Resource | Uri, ...resourceStates: SourceControlResourceState[]): Promise<void> {
 		this.openFile(arg, ...resourceStates);
 	}
 
-	@command('git.openHEADFile')
+	@command('vsr.openHEADFile')
 	async openHEADFile(arg?: Resource | Uri): Promise<void> {
 		let resource: Resource | undefined = undefined;
 		const preview = !(arg instanceof Resource);
@@ -895,7 +890,7 @@ export class CommandCenter {
 		return await commands.executeCommand<void>('vscode.open', HEAD, opts, title);
 	}
 
-	@command('git.openChange')
+	@command('vsr.openChange')
 	async openChange(arg?: Resource | Uri, ...resourceStates: SourceControlResourceState[]): Promise<void> {
 		const preserveFocus = arg instanceof Resource;
 		const preview = !(arg instanceof Resource);
@@ -931,7 +926,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.stage')
+	@command('vsr.stage')
 	async stage(...resourceStates: SourceControlResourceState[]): Promise<void> {
 		this.outputChannel.appendLine(`git.stage ${resourceStates.length}`);
 
@@ -992,7 +987,7 @@ export class CommandCenter {
 		await this.runByRepository(resources, async (repository, resources) => repository.add(resources));
 	}
 
-	@command('git.stageAll', { repository: true })
+	@command('vsr.stageAll', { repository: true })
 	async stageAll(repository: Repository): Promise<void> {
 		const resources = repository.mergeGroup.resourceStates.filter(s => s instanceof Resource) as Resource[];
 		const { merge, unresolved, deletionConflicts } = await categorizeResourceByResolution(resources);
@@ -1062,7 +1057,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.stageAllTracked', { repository: true })
+	@command('vsr.stageAllTracked', { repository: true })
 	async stageAllTracked(repository: Repository): Promise<void> {
 		const resources = repository.workingTreeGroup.resourceStates
 			.filter(r => r.type !== Status.UNTRACKED && r.type !== Status.IGNORED);
@@ -1071,7 +1066,7 @@ export class CommandCenter {
 		await repository.add(uris);
 	}
 
-	@command('git.stageAllUntracked', { repository: true })
+	@command('vsr.stageAllUntracked', { repository: true })
 	async stageAllUntracked(repository: Repository): Promise<void> {
 		const resources = [...repository.workingTreeGroup.resourceStates, ...repository.untrackedGroup.resourceStates]
 			.filter(r => r.type === Status.UNTRACKED || r.type === Status.IGNORED);
@@ -1080,7 +1075,7 @@ export class CommandCenter {
 		await repository.add(uris);
 	}
 
-	@command('git.stageChange')
+	@command('vsr.stageChange')
 	async stageChange(uri: Uri, changes: LineChange[], index: number): Promise<void> {
 		const textEditor = window.visibleTextEditors.filter(e => e.document.uri.toString() === uri.toString())[0];
 
@@ -1091,7 +1086,7 @@ export class CommandCenter {
 		await this._stageChanges(textEditor, [changes[index]]);
 	}
 
-	@command('git.stageSelectedRanges', { diff: true })
+	@command('vsr.stageSelectedRanges', { diff: true })
 	async stageSelectedChanges(changes: LineChange[]): Promise<void> {
 		const textEditor = window.activeTextEditor;
 
@@ -1127,7 +1122,7 @@ export class CommandCenter {
 		await this.runByRepository(modifiedUri, async (repository, resource) => await repository.stage(resource, result));
 	}
 
-	@command('git.revertChange')
+	@command('vsr.revertChange')
 	async revertChange(uri: Uri, changes: LineChange[], index: number): Promise<void> {
 		const textEditor = window.visibleTextEditors.filter(e => e.document.uri.toString() === uri.toString())[0];
 
@@ -1138,7 +1133,7 @@ export class CommandCenter {
 		await this._revertChanges(textEditor, [...changes.slice(0, index), ...changes.slice(index + 1)]);
 	}
 
-	@command('git.revertSelectedRanges', { diff: true })
+	@command('vsr.revertSelectedRanges', { diff: true })
 	async revertSelectedRanges(changes: LineChange[]): Promise<void> {
 		const textEditor = window.activeTextEditor;
 
@@ -1184,7 +1179,7 @@ export class CommandCenter {
 		textEditor.revealRange(visibleRangesBeforeRevert[0]);
 	}
 
-	@command('git.unstage')
+	@command('vsr.unstage')
 	async unstage(...resourceStates: SourceControlResourceState[]): Promise<void> {
 		resourceStates = resourceStates.filter(s => !!s);
 
@@ -1209,12 +1204,12 @@ export class CommandCenter {
 		await this.runByRepository(resources, async (repository, resources) => repository.revert(resources));
 	}
 
-	@command('git.unstageAll', { repository: true })
+	@command('vsr.unstageAll', { repository: true })
 	async unstageAll(repository: Repository): Promise<void> {
 		await repository.revert([]);
 	}
 
-	@command('git.unstageSelectedRanges', { diff: true })
+	@command('vsr.unstageSelectedRanges', { diff: true })
 	async unstageSelectedRanges(diffs: LineChange[]): Promise<void> {
 		const textEditor = window.activeTextEditor;
 
@@ -1252,7 +1247,7 @@ export class CommandCenter {
 		await this.runByRepository(modifiedUri, async (repository, resource) => await repository.stage(resource, result));
 	}
 
-	@command('git.clean')
+	@command('vsr.clean')
 	async clean(...resourceStates: SourceControlResourceState[]): Promise<void> {
 		resourceStates = resourceStates.filter(s => !!s);
 
@@ -1312,7 +1307,7 @@ export class CommandCenter {
 		await this.runByRepository(resources, async (repository, resources) => repository.clean(resources));
 	}
 
-	@command('git.cleanAll', { repository: true })
+	@command('vsr.cleanAll', { repository: true })
 	async cleanAll(repository: Repository): Promise<void> {
 		let resources = repository.workingTreeGroup.resourceStates;
 
@@ -1353,7 +1348,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.cleanAllTracked', { repository: true })
+	@command('vsr.cleanAllTracked', { repository: true })
 	async cleanAllTracked(repository: Repository): Promise<void> {
 		const resources = repository.workingTreeGroup.resourceStates
 			.filter(r => r.type !== Status.UNTRACKED && r.type !== Status.IGNORED);
@@ -1365,7 +1360,7 @@ export class CommandCenter {
 		await this._cleanTrackedChanges(repository, resources);
 	}
 
-	@command('git.cleanAllUntracked', { repository: true })
+	@command('vsr.cleanAllUntracked', { repository: true })
 	async cleanAllUntracked(repository: Repository): Promise<void> {
 		const resources = [...repository.workingTreeGroup.resourceStates, ...repository.untrackedGroup.resourceStates]
 			.filter(r => r.type === Status.UNTRACKED || r.type === Status.IGNORED);
@@ -1591,42 +1586,42 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.commit', { repository: true })
+	@command('vsr.commit', { repository: true })
 	async commit(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository);
 	}
 
-	@command('git.commitStaged', { repository: true })
+	@command('vsr.commitStaged', { repository: true })
 	async commitStaged(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository, { all: false });
 	}
 
-	@command('git.commitStagedSigned', { repository: true })
+	@command('vsr.commitStagedSigned', { repository: true })
 	async commitStagedSigned(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository, { all: false, signoff: true });
 	}
 
-	@command('git.commitStagedAmend', { repository: true })
+	@command('vsr.commitStagedAmend', { repository: true })
 	async commitStagedAmend(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository, { all: false, amend: true });
 	}
 
-	@command('git.commitAll', { repository: true })
+	@command('vsr.commitAll', { repository: true })
 	async commitAll(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository, { all: true });
 	}
 
-	@command('git.commitAllSigned', { repository: true })
+	@command('vsr.commitAllSigned', { repository: true })
 	async commitAllSigned(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository, { all: true, signoff: true });
 	}
 
-	@command('git.commitAllAmend', { repository: true })
+	@command('vsr.commitAllAmend', { repository: true })
 	async commitAllAmend(repository: Repository): Promise<void> {
 		await this.commitWithAnyInput(repository, { all: true, amend: true });
 	}
 
-	@command('git.commitEmpty', { repository: true })
+	@command('vsr.commitEmpty', { repository: true })
 	async commitEmpty(repository: Repository): Promise<void> {
 		const root = Uri.file(repository.root);
 		const config = workspace.getConfiguration('vsr', root);
@@ -1648,12 +1643,12 @@ export class CommandCenter {
 		await this.commitWithAnyInput(repository, { empty: true });
 	}
 
-	@command('git.restoreCommitTemplate', { repository: true })
+	@command('vsr.restoreCommitTemplate', { repository: true })
 	async restoreCommitTemplate(repository: Repository): Promise<void> {
 		repository.inputBox.value = await repository.getCommitTemplate();
 	}
 
-	@command('git.undoCommit', { repository: true })
+	@command('vsr.undoCommit', { repository: true })
 	async undoCommit(repository: Repository): Promise<void> {
 		const HEAD = repository.HEAD;
 
@@ -1683,7 +1678,7 @@ export class CommandCenter {
 		repository.inputBox.value = commit.message;
 	}
 
-	@command('git.checkout', { repository: true })
+	@command('vsr.checkout', { repository: true })
 	async checkout(repository: Repository, treeish: string): Promise<boolean> {
 		if (typeof treeish === 'string') {
 			await repository.checkout(treeish);
@@ -1718,12 +1713,12 @@ export class CommandCenter {
 		return true;
 	}
 
-	@command('git.branch', { repository: true })
+	@command('vsr.branch', { repository: true })
 	async branch(repository: Repository): Promise<void> {
 		await this._branch(repository);
 	}
 
-	@command('git.branchFrom', { repository: true })
+	@command('vsr.branchFrom', { repository: true })
 	async branchFrom(repository: Repository): Promise<void> {
 		await this._branch(repository, undefined, true);
 	}
@@ -1778,7 +1773,7 @@ export class CommandCenter {
 		await repository.branch(branchName, true, target);
 	}
 
-	@command('git.deleteBranch', { repository: true })
+	@command('vsr.deleteBranch', { repository: true })
 	async deleteBranch(repository: Repository, name: string, force?: boolean): Promise<void> {
 		let run: (force?: boolean) => Promise<void>;
 		if (typeof name === 'string') {
@@ -1815,7 +1810,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.renameBranch', { repository: true })
+	@command('vsr.renameBranch', { repository: true })
 	async renameBranch(repository: Repository): Promise<void> {
 		const currentBranchName = repository.HEAD && repository.HEAD.name;
 		const branchName = await this.promptForBranchName(undefined, currentBranchName);
@@ -1840,7 +1835,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.merge', { repository: true })
+	@command('vsr.merge', { repository: true })
 	async merge(repository: Repository): Promise<void> {
 		const config = workspace.getConfiguration('vsr');
 		const checkoutType = config.get<string>('checkoutType') || 'all';
@@ -1865,7 +1860,7 @@ export class CommandCenter {
 		await choice.run(repository);
 	}
 
-	@command('git.createTag', { repository: true })
+	@command('vsr.createTag', { repository: true })
 	async createTag(repository: Repository): Promise<void> {
 		const inputTagName = await window.showInputBox({
 			placeHolder: localize('tag name', "Tag name"),
@@ -1888,7 +1883,7 @@ export class CommandCenter {
 		await repository.tag(name, message);
 	}
 
-	@command('git.deleteTag', { repository: true })
+	@command('vsr.deleteTag', { repository: true })
 	async deleteTag(repository: Repository): Promise<void> {
 		const picks = repository.refs.filter(ref => ref.type === RefType.Tag)
 			.map(ref => new TagItem(ref));
@@ -1908,7 +1903,7 @@ export class CommandCenter {
 		await repository.deleteTag(choice.label);
 	}
 
-	@command('git.fetch', { repository: true })
+	@command('vsr.fetch', { repository: true })
 	async fetch(repository: Repository): Promise<void> {
 		if (repository.remotes.length === 0) {
 			window.showWarningMessage(localize('no remotes to fetch', "This repository has no remotes configured to fetch from."));
@@ -1918,7 +1913,7 @@ export class CommandCenter {
 		await repository.fetchDefault();
 	}
 
-	@command('git.fetchPrune', { repository: true })
+	@command('vsr.fetchPrune', { repository: true })
 	async fetchPrune(repository: Repository): Promise<void> {
 		if (repository.remotes.length === 0) {
 			window.showWarningMessage(localize('no remotes to fetch', "This repository has no remotes configured to fetch from."));
@@ -1929,7 +1924,7 @@ export class CommandCenter {
 	}
 
 
-	@command('git.fetchAll', { repository: true })
+	@command('vsr.fetchAll', { repository: true })
 	async fetchAll(repository: Repository): Promise<void> {
 		if (repository.remotes.length === 0) {
 			window.showWarningMessage(localize('no remotes to fetch', "This repository has no remotes configured to fetch from."));
@@ -1939,7 +1934,7 @@ export class CommandCenter {
 		await repository.fetchAll();
 	}
 
-	@command('git.pullFrom', { repository: true })
+	@command('vsr.pullFrom', { repository: true })
 	async pullFrom(repository: Repository): Promise<void> {
 		const remotes = repository.remotes;
 
@@ -1971,7 +1966,7 @@ export class CommandCenter {
 		await repository.pullFrom(false, remotePick.label, branchPick.label.slice(remoteCharCnt + 1));
 	}
 
-	@command('git.pull', { repository: true })
+	@command('vsr.pull', { repository: true })
 	async pull(repository: Repository): Promise<void> {
 		const remotes = repository.remotes;
 
@@ -1983,7 +1978,7 @@ export class CommandCenter {
 		await repository.pull(repository.HEAD);
 	}
 
-	@command('git.pullRebase', { repository: true })
+	@command('vsr.pullRebase', { repository: true })
 	async pullRebase(repository: Repository): Promise<void> {
 		const remotes = repository.remotes;
 
@@ -2086,37 +2081,37 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.push', { repository: true })
+	@command('vsr.push', { repository: true })
 	async push(repository: Repository): Promise<void> {
 		await this._push(repository, { pushType: PushType.Push });
 	}
 
-	@command('git.pushForce', { repository: true })
+	@command('vsr.pushForce', { repository: true })
 	async pushForce(repository: Repository): Promise<void> {
 		await this._push(repository, { pushType: PushType.Push, forcePush: true });
 	}
 
-	@command('git.pushWithTags', { repository: true })
+	@command('vsr.pushWithTags', { repository: true })
 	async pushFollowTags(repository: Repository): Promise<void> {
 		await this._push(repository, { pushType: PushType.PushFollowTags });
 	}
 
-	@command('git.pushWithTagsForce', { repository: true })
+	@command('vsr.pushWithTagsForce', { repository: true })
 	async pushFollowTagsForce(repository: Repository): Promise<void> {
 		await this._push(repository, { pushType: PushType.PushFollowTags, forcePush: true });
 	}
 
-	@command('git.pushTo', { repository: true })
+	@command('vsr.pushTo', { repository: true })
 	async pushTo(repository: Repository): Promise<void> {
 		await this._push(repository, { pushType: PushType.PushTo });
 	}
 
-	@command('git.pushToForce', { repository: true })
+	@command('vsr.pushToForce', { repository: true })
 	async pushToForce(repository: Repository): Promise<void> {
 		await this._push(repository, { pushType: PushType.PushTo, forcePush: true });
 	}
 
-	@command('git.addRemote', { repository: true })
+	@command('vsr.addRemote', { repository: true })
 	async addRemote(repository: Repository): Promise<string | undefined> {
 		const remotes = repository.remotes;
 
@@ -2163,7 +2158,7 @@ export class CommandCenter {
 		return name;
 	}
 
-	@command('git.removeRemote', { repository: true })
+	@command('vsr.removeRemote', { repository: true })
 	async removeRemote(repository: Repository): Promise<void> {
 		const remotes = repository.remotes;
 
@@ -2228,7 +2223,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.sync', { repository: true })
+	@command('vsr.sync', { repository: true })
 	async sync(repository: Repository): Promise<void> {
 		try {
 			await this._sync(repository, false);
@@ -2241,7 +2236,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git._syncAll')
+	@command('vsr._syncAll')
 	async syncAll(): Promise<void> {
 		await Promise.all(this.model.repositories.map(async repository => {
 			const HEAD = repository.HEAD;
@@ -2254,7 +2249,7 @@ export class CommandCenter {
 		}));
 	}
 
-	@command('git.syncRebase', { repository: true })
+	@command('vsr.syncRebase', { repository: true })
 	async syncRebase(repository: Repository): Promise<void> {
 		try {
 			await this._sync(repository, true);
@@ -2267,7 +2262,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.publish', { repository: true })
+	@command('vsr.publish', { repository: true })
 	async publish(repository: Repository): Promise<void> {
 		const branchName = repository.HEAD && repository.HEAD.name || '';
 		const remotes = repository.remotes;
@@ -2325,7 +2320,7 @@ export class CommandCenter {
 		}
 	}
 
-	@command('git.ignore')
+	@command('vsr.ignore')
 	async ignore(...resourceStates: SourceControlResourceState[]): Promise<void> {
 		resourceStates = resourceStates.filter(s => !!s);
 
@@ -2350,7 +2345,7 @@ export class CommandCenter {
 		await this.runByRepository(resources, async (repository, resources) => repository.ignore(resources));
 	}
 
-	@command('git.revealInExplorer')
+	@command('vsr.revealInExplorer')
 	async revealInExplorer(resourceState: SourceControlResourceState): Promise<void> {
 		if (!resourceState) {
 			return;
@@ -2389,17 +2384,17 @@ export class CommandCenter {
 		});
 	}
 
-	@command('git.stash', { repository: true })
+	@command('vsr.stash', { repository: true })
 	stash(repository: Repository): Promise<void> {
 		return this._stash(repository);
 	}
 
-	@command('git.stashIncludeUntracked', { repository: true })
+	@command('vsr.stashIncludeUntracked', { repository: true })
 	stashIncludeUntracked(repository: Repository): Promise<void> {
 		return this._stash(repository, true);
 	}
 
-	@command('git.stashPop', { repository: true })
+	@command('vsr.stashPop', { repository: true })
 	async stashPop(repository: Repository): Promise<void> {
 		const placeHolder = localize('pick stash to pop', "Pick a stash to pop");
 		const stash = await this.pickStash(repository, placeHolder);
@@ -2411,7 +2406,7 @@ export class CommandCenter {
 		await repository.popStash(stash.index);
 	}
 
-	@command('git.stashPopLatest', { repository: true })
+	@command('vsr.stashPopLatest', { repository: true })
 	async stashPopLatest(repository: Repository): Promise<void> {
 		const stashes = await repository.getStashes();
 
@@ -2423,7 +2418,7 @@ export class CommandCenter {
 		await repository.popStash();
 	}
 
-	@command('git.stashApply', { repository: true })
+	@command('vsr.stashApply', { repository: true })
 	async stashApply(repository: Repository): Promise<void> {
 		const placeHolder = localize('pick stash to apply', "Pick a stash to apply");
 		const stash = await this.pickStash(repository, placeHolder);
@@ -2435,7 +2430,7 @@ export class CommandCenter {
 		await repository.applyStash(stash.index);
 	}
 
-	@command('git.stashApplyLatest', { repository: true })
+	@command('vsr.stashApplyLatest', { repository: true })
 	async stashApplyLatest(repository: Repository): Promise<void> {
 		const stashes = await repository.getStashes();
 
@@ -2447,7 +2442,7 @@ export class CommandCenter {
 		await repository.applyStash();
 	}
 
-	@command('git.stashDrop', { repository: true })
+	@command('vsr.stashDrop', { repository: true })
 	async stashDrop(repository: Repository): Promise<void> {
 		const placeHolder = localize('pick stash to drop', "Pick a stash to drop");
 		const stash = await this.pickStash(repository, placeHolder);
@@ -2472,53 +2467,7 @@ export class CommandCenter {
 		return result && result.stash;
 	}
 
-	@command('git.timeline.openDiff', { repository: false })
-	async timelineOpenDiff(item: TimelineItem, uri: Uri | undefined, _source: string) {
-		// eslint-disable-next-line eqeqeq
-		if (uri == null || !GitTimelineItem.is(item)) {
-			return undefined;
-		}
-
-		const basename = path.basename(uri.fsPath);
-
-		let title;
-		if ((item.previousRef === 'HEAD' || item.previousRef === '~') && item.ref === '') {
-			title = localize('git.title.workingTree', '{0} (Working Tree)', basename);
-		}
-		else if (item.previousRef === 'HEAD' && item.ref === '~') {
-			title = localize('git.title.index', '{0} (Index)', basename);
-		} else {
-			title = localize('git.title.diffRefs', '{0} ({1}) ⟷ {0} ({2})', basename, item.shortPreviousRef, item.shortRef);
-		}
-
-		const options: TextDocumentShowOptions = {
-			preserveFocus: true,
-			preview: true,
-			viewColumn: ViewColumn.Active
-		};
-
-		return commands.executeCommand('vscode.diff', toGitUri(uri, item.previousRef), item.ref === '' ? uri : toGitUri(uri, item.ref), title, options);
-	}
-
-	@command('git.timeline.copyCommitId', { repository: false })
-	async timelineCopyCommitId(item: TimelineItem, _uri: Uri | undefined, _source: string) {
-		if (!GitTimelineItem.is(item)) {
-			return;
-		}
-
-		env.clipboard.writeText(item.ref);
-	}
-
-	@command('git.timeline.copyCommitMessage', { repository: false })
-	async timelineCopyCommitMessage(item: TimelineItem, _uri: Uri | undefined, _source: string) {
-		if (!GitTimelineItem.is(item)) {
-			return;
-		}
-
-		env.clipboard.writeText(item.message);
-	}
-
-	@command('git.rebaseAbort', { repository: true })
+	@command('vsr.rebaseAbort', { repository: true })
 	async rebaseAbort(repository: Repository): Promise<void> {
 		await repository.rebaseAbort();
 	}
@@ -2556,8 +2505,6 @@ export class CommandCenter {
 					"command" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
 				}
 			*/
-			this.telemetryReporter.sendTelemetryEvent('git.command', { command: id });
-
 			return result.catch(async err => {
 				const options: MessageOptions = {
 					modal: true

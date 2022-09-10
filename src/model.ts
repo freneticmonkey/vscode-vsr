@@ -96,7 +96,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 		this.disposables.push(fsWatcher);
 
 		const onWorkspaceChange = anyEvent(fsWatcher.onDidChange, fsWatcher.onDidCreate, fsWatcher.onDidDelete);
-		const onGitRepositoryChange = filterEvent(onWorkspaceChange, uri => /\/\.git/.test(uri.path));
+		const onGitRepositoryChange = filterEvent(onWorkspaceChange, uri => /\/\.versionr/.test(uri.path));
 		const onPossibleGitRepositoryChange = filterEvent(onGitRepositoryChange, uri => !this.getRepository(uri));
 		onPossibleGitRepositoryChange(this.onPossibleGitRepositoryChange, this, this.disposables);
 
@@ -114,7 +114,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 
 	/**
 	 * Scans the first level of each workspace folder, looking
-	 * for git repositories.
+	 * for versionr repositories.
 	 */
 	private async scanWorkspaceFolders(): Promise<void> {
 		const config = workspace.getConfiguration('vsr');
@@ -128,7 +128,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 			const root = folder.uri.fsPath;
 			const children = await new Promise<string[]>((c, e) => fs.readdir(root, (err, r) => err ? e(err) : c(r)));
 			const promises = children
-				.filter(child => child !== '.git')
+				.filter(child => child !== '.versionr')
 				.map(child => this.openRepository(path.join(root, child)));
 
 			const folderConfig = workspace.getConfiguration('vsr', folder.uri);
@@ -136,7 +136,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 
 			for (const possibleRepositoryPath of paths) {
 				if (path.isAbsolute(possibleRepositoryPath)) {
-					console.warn(localize('not supported', "Absolute paths not supported in 'git.scanRepositories' setting."));
+					console.warn(localize('not supported', "Absolute paths not supported in 'vsr.scanRepositories' setting."));
 					continue;
 				}
 
@@ -148,7 +148,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 	}
 
 	private onPossibleGitRepositoryChange(uri: Uri): void {
-		this.eventuallyScanPossibleGitRepository(uri.fsPath.replace(/\.git.*$/, ''));
+		this.eventuallyScanPossibleGitRepository(uri.fsPath.replace(/\.versionr.*$/, ''));
 	}
 
 	private eventuallyScanPossibleGitRepository(path: string) {
@@ -396,7 +396,7 @@ export class Model implements IRemoteSourceProviderRegistry {
 		if (hint instanceof Uri) {
 			let resourcePath: string;
 
-			if (hint.scheme === 'git') {
+			if (hint.scheme === 'vsr') {
 				resourcePath = fromGitUri(hint).path;
 			} else {
 				resourcePath = hint.fsPath;

@@ -14,15 +14,12 @@ import { GitFileSystemProvider } from './fileSystemProvider';
 import { GitDecorations } from './decorationProvider';
 import { Askpass } from './askpass';
 import { toDisposable, filterEvent, eventToPromise } from './util';
-import TelemetryReporter from 'vscode-extension-telemetry';
 import { VsrExtension } from './api/vsr';
 import { GitProtocolHandler } from './protocolHandler';
 import { GitExtensionImpl } from './api/extension';
 import * as path from 'path';
 import * as fs from 'fs';
-import { GitTimelineProvider } from './timelineProvider';
 import { registerAPICommands } from './api/api1';
-import { GithubCredentialProviderManager } from './github';
 import { TerminalEnvironmentManager } from './terminal';
 
 const deactivateTasks: { (): Promise<any>; }[] = [];
@@ -33,19 +30,49 @@ export async function deactivate(): Promise<any> {
 	}
 }
 
-async function createModel(context: ExtensionContext, outputChannel: OutputChannel, telemetryReporter: TelemetryReporter, disposables: Disposable[]): Promise<Model> {
+async function createModel(context: ExtensionContext, outputChannel: OutputChannel, disposables: Disposable[]): Promise<Model> {
 	const pathHint = workspace.getConfiguration('vsr').get<string>('path');
 	const info = await findVsr(pathHint, path => outputChannel.appendLine(localize('looking', "Looking for vsr in: {0}", path)));
+	
+	try {
+		// This is a little bit of a workaround, but this is the friendliest way to introduce this setting
+		if (workspace.workspaceFolders) {
+			var folder = workspace.workspaceFolders[0];
+			
+			var filePath = path.join(folder.uri.fsPath, '.vscode', 'settings.json');
 
+			// If the settings file does not exist
+			if (!fs.existsSync(filePath)) {
+				fs.mkdirSync(path.join(folder.uri.fsPath, '.vscode'));
+				
+				// Write a workspace settings file if one doesn't exist to exclude .versionr folder from 
+				// the explorer tree and file watch / search operations
+				const content = `{
+		"files.exclude": {
+			"**/.versionr": true
+		},
+		"files.watcherExclude": {
+			"**/.versionr/**": true
+		},
+		"search.exclude": {
+			"**/.versionr": true
+		}
+	}`;
+				fs.writeFileSync(filePath, content, 'utf8');
+			};
+		}
+
+
+	} catch (err) {
+		console.warn(err);
+	}
+		
 	const askpass = await Askpass.create(outputChannel, context.storagePath);
 	disposables.push(askpass);
 
 	const env = askpass.getEnv();
 	const terminalEnvironmentManager = new TerminalEnvironmentManager(context, env);
 	disposables.push(terminalEnvironmentManager);
-
-	// const githubCredentialProviderManager = new GithubCredentialProviderManager(askpass);
-	// context.subscriptions.push(githubCredentialProviderManager);
 
 	const git = new Vsr({ gitPath: info.path, version: info.version, env });
 	const model = new Model(git, askpass, context.globalState, outputChannel);
@@ -71,11 +98,10 @@ async function createModel(context: ExtensionContext, outputChannel: OutputChann
 	disposables.push(toDisposable(() => git.onOutput.removeListener('log', onOutput)));
 
 	disposables.push(
-		new CommandCenter(git, model, outputChannel, telemetryReporter),
+		new CommandCenter(git, model, outputChannel),
 		new GitFileSystemProvider(model),
 		new GitDecorations(model),
-		new GitProtocolHandler(),
-		new GitTimelineProvider(model)
+		new GitProtocolHandler()
 	);
 
 	await checkGitVersion(info);
@@ -140,8 +166,6 @@ export async function _activate(context: ExtensionContext): Promise<VsrExtension
 	disposables.push(outputChannel);
 
 	const { name, version, aiKey } = require('../package.json') as { name: string, version: string, aiKey: string };
-	const telemetryReporter = new TelemetryReporter(name, version, aiKey);
-	deactivateTasks.push(() => telemetryReporter.dispose());
 
 	const config = workspace.getConfiguration('vsr', null);
 	const enabled = config.get<boolean>('enabled');
@@ -151,12 +175,12 @@ export async function _activate(context: ExtensionContext): Promise<VsrExtension
 		const onEnabled = filterEvent(onConfigChange, () => workspace.getConfiguration('vsr', null).get<boolean>('enabled') === true);
 		const result = new GitExtensionImpl();
 
-		eventToPromise(onEnabled).then(async () => result.model = await createModel(context, outputChannel, telemetryReporter, disposables));
+		eventToPromise(onEnabled).then(async () => result.model = await createModel(context, outputChannel, disposables));
 		return result;
 	}
 
 	try {
-		const model = await createModel(context, outputChannel, telemetryReporter, disposables);
+		const model = await createModel(context, outputChannel, disposables);
 		return new GitExtensionImpl(model);
 	} catch (err) {
 		if (!/Git installation not found/.test(err.message || '')) {
