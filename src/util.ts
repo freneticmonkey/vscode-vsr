@@ -140,20 +140,27 @@ export function groupBy<T>(arr: T[], fn: (el: T) => string): { [key: string]: T[
 	}, Object.create(null));
 }
 
+function isErrnoError(error: any): error is NodeJS.ErrnoException {
+	return error instanceof Error;
+}
 
 export async function mkdirp(path: string, mode?: number): Promise<boolean> {
 	const mkdir = async () => {
 		try {
 			await fs.mkdir(path, mode);
 		} catch (err) {
-			if (err.code === 'EEXIST') {
-				const stat = await fs.stat(path);
 
-				if (stat.isDirectory()) {
-					return;
-				}
-
-				throw new Error(`'${path}' exists and is not a directory.`);
+			if (isErrnoError(err))
+			{
+				if (err.code === 'EEXIST') {
+					const stat = await fs.stat(path);
+	
+					if (stat.isDirectory()) {
+						return;
+					}
+	
+					throw new Error(`'${path}' exists and is not a directory.`);
+				}				
 			}
 
 			throw err;
@@ -168,8 +175,10 @@ export async function mkdirp(path: string, mode?: number): Promise<boolean> {
 	try {
 		await mkdir();
 	} catch (err) {
-		if (err.code !== 'ENOENT') {
-			throw err;
+		if (isErrnoError(err)) {
+			if (err.code !== 'ENOENT') {
+				throw err;
+			}
 		}
 
 		await mkdirp(dirname(path), mode);
@@ -358,7 +367,7 @@ export function* splitInChunks(array: string[], maxChunkLength: number): Iterabl
 
 interface ILimitedTaskFactory<T> {
 	factory: () => Promise<T>;
-	c: (value?: T | Promise<T>) => void;
+	c: (value: T | Promise<T>) => void;
 	e: (error?: any) => void;
 }
 

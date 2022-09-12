@@ -239,9 +239,13 @@ export class Model implements IRemoteSourceProviderRegistry {
 		try {
 			const rawRoot = await this.git.getRepositoryRoot(path);
 
+			// let cleanRoot = rawRoot.slice(8);//replace(/^[\x1b\x5b\x30\x6d]\.)/n,"");			
+			// let cleanRoot = rawRoot.replace(/^( \u001B\[0m\u001B\[0m)/,"");			
+			
 			// This can happen whenever `path` has the wrong case sensitivity in
 			// case insensitive file systems
 			// https://github.com/Microsoft/vscode/issues/33498
+			// const repositoryRoot = Uri.file(cleanRoot).fsPath;
 			const repositoryRoot = Uri.file(rawRoot).fsPath;
 
 			if (this.getRepository(repositoryRoot)) {

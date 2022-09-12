@@ -21,6 +21,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { registerAPICommands } from './api/api1';
 import { TerminalEnvironmentManager } from './terminal';
+import { GitError, isGitError } from './vsr';
 
 const deactivateTasks: { (): Promise<any>; }[] = [];
 
@@ -151,7 +152,7 @@ async function warnAboutMissingGit(): Promise<void> {
 	);
 
 	if (choice === download) {
-		commands.executeCommand('vscode.open', Uri.parse('https://github.com/eatplayhate/versionr/'));
+		commands.executeCommand('vscode.open', Uri.parse('https://versionr.github.io/'));
 	} else if (choice === neverShowAgain) {
 		await config.update('ignoreMissingVsrWarning', true, true);
 	}
@@ -183,12 +184,14 @@ export async function _activate(context: ExtensionContext): Promise<VsrExtension
 		const model = await createModel(context, outputChannel, disposables);
 		return new GitExtensionImpl(model);
 	} catch (err) {
-		if (!/Git installation not found/.test(err.message || '')) {
-			throw err;
-		}
+		if (isGitError(err)) {
+			if (!/Git installation not found/.test(err.message || '')) {
+				throw err;
+			}
 
-		console.warn(err.message);
-		outputChannel.appendLine(err.message);
+			console.warn(err.message);
+			outputChannel.appendLine(err.message);
+		}
 
 		commands.executeCommand('setContext', 'vsr.missing', true);
 		warnAboutMissingGit();

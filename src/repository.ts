@@ -13,7 +13,7 @@ import * as nls from 'vscode-nls';
 import { Branch, Change, VsrErrorCodes, LogOptions, Ref, RefType, Remote, Status, CommitOptions, BranchQuery } from './api/vsr';
 import { AutoFetcher } from './autofetch';
 import { debounce, memoize, throttle } from './decorators';
-import { Commit, ForcePushMode, GitError, Repository as BaseRepository, Stash, Submodule, LogFileOptions } from './vsr';
+import { Commit, ForcePushMode, GitError, isGitError, Repository as BaseRepository, Stash, Submodule, LogFileOptions } from './vsr';
 import { StatusBarCommands } from './statusbar';
 import { toGitUri } from './uri';
 import { anyEvent, combinedDisposable, debounceEvent, dispose, EmptyDisposable, eventToPromise, filterEvent, find, IDisposable, isDescendant, onceEvent } from './util';
@@ -580,7 +580,7 @@ class DotGitWatcher implements IFileWatcher {
 			upstreamWatcher.event(this.emitter.fire, this.emitter, this.transientDisposables);
 		} catch (err) {
 			if (Log.logLevel <= LogLevel.Error) {
-				this.outputChannel.appendLine(`Failed to watch ref '${upstreamPath}', is most likely packed.\n${err.stack || err}`);
+				this.outputChannel.appendLine(`Failed to watch ref '${upstreamPath}', is most likely packed.`);
 			}
 		}
 	}
@@ -744,7 +744,7 @@ export class Repository implements Disposable {
 			this.disposables.push(dotGitFileWatcher);
 		} catch (err) {
 			if (Log.logLevel <= LogLevel.Error) {
-				outputChannel.appendLine(`Failed to watch '${this.dotGit}', reverting to legacy API file watched. Some events might be lost.\n${err.stack || err}`);
+				outputChannel.appendLine(`Failed to watch '${this.dotGit}', reverting to legacy API file watched. Some events might be lost.`);
 			}
 
 			onDotGitFileChange = filterEvent(onWorkspaceRepositoryFileChange, uri => /\/\.versionr($|\/)/.test(uri.path));
@@ -1310,9 +1310,12 @@ export class Repository implements Disposable {
 			try {
 				return await this.repository.bufferString(`${ref}:${relativePath}`, defaultEncoding, autoGuessEncoding);
 			} catch (err) {
-				if (err.gitErrorCode === VsrErrorCodes.WrongCase) {
-					const gitRelativePath = await this.repository.getGitRelativePath(ref, relativePath);
-					return await this.repository.bufferString(`${ref}:${gitRelativePath}`, defaultEncoding, autoGuessEncoding);
+
+				if (isGitError(err)) {
+					if (err.gitErrorCode === VsrErrorCodes.WrongCase) {
+						const gitRelativePath = await this.repository.getGitRelativePath(ref, relativePath);
+						return await this.repository.bufferString(`${ref}:${gitRelativePath}`, defaultEncoding, autoGuessEncoding);
+					}
 				}
 
 				throw err;
@@ -1476,9 +1479,11 @@ export class Repository implements Disposable {
 			return result;
 		} catch (err) {
 			error = err;
-
-			if (err.gitErrorCode === VsrErrorCodes.NotAGitRepository) {
-				this.state = RepositoryState.Disposed;
+			
+			if (isGitError(err)) {
+				if (err.gitErrorCode === VsrErrorCodes.NotAGitRepository) {
+					this.state = RepositoryState.Disposed;
+				}
 			}
 
 			throw err;
@@ -1496,9 +1501,16 @@ export class Repository implements Disposable {
 				attempt++;
 				return await runOperation();
 			} catch (err) {
-				const shouldRetry = attempt <= 10 && (
-					(err.gitErrorCode === VsrErrorCodes.RepositoryIsLocked)
-					|| ((operation === Operation.Pull || operation === Operation.Sync || operation === Operation.Fetch) && (err.gitErrorCode === VsrErrorCodes.CantLockRef || err.gitErrorCode === VsrErrorCodes.CantRebaseMultipleBranches))
+				let gitError = undefined;
+				
+				if (isGitError(err)) {
+					gitError = err as GitError;
+				}
+				
+				const shouldRetry = attempt <= 10 && gitError && (
+					(gitError.gitErrorCode === VsrErrorCodes.RepositoryIsLocked)
+					|| ((operation === Operation.Pull || operation === Operation.Sync || operation === Operation.Fetch) 
+					&& (gitError.gitErrorCode === VsrErrorCodes.CantLockRef || gitError.gitErrorCode === VsrErrorCodes.CantRebaseMultipleBranches))
 				);
 
 				if (shouldRetry) {

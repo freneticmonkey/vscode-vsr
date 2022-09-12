@@ -21,6 +21,7 @@ import { grep, isDescendant, pathEquals } from './util';
 import { Log, LogLevel } from './log';
 import { throttle, debounce } from './decorators';
 import { ApiRepository } from './api/api1';
+import { GitError, isGitError } from './vsr';
 
 const localize = nls.loadMessageBundle();
 
@@ -288,7 +289,9 @@ class RemoteSourceProviderQuickPick {
 				}));
 			}
 		} catch (err) {
-			this.quickpick.items = [{ label: localize('error', "$(error) Error: {0}", err.message), alwaysShow: true }];
+			if (isGitError(err)) {
+				this.quickpick.items = [{ label: localize('error', "$(error) Error: {0}", err.message), alwaysShow: true }];
+			}
 		} finally {
 			this.quickpick.busy = false;
 		}
@@ -608,7 +611,7 @@ export class CommandCenter {
 		try {
 			const opts = {
 				location: ProgressLocation.Notification,
-				title: localize('cloning', "Cloning git repository '{0}'...", url),
+				title: localize('cloning', "Cloning vsr repository '{0}'...", url),
 				cancellable: true
 			};
 
@@ -648,20 +651,22 @@ export class CommandCenter {
 				commands.executeCommand('vscode.openFolder', uri, true);
 			}
 		} catch (err) {
-			if (/already exists and is not an empty directory/.test(err && err.stderr || '')) {
-				/* __GDPR__
-					"clone" : {
-						"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
-					}
-				*/
-			} else if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
-				return;
-			} else {
-				/* __GDPR__
-					"clone" : {
-						"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
-					}
-				*/
+			if (isGitError(err)) {
+				if (/already exists and is not an empty directory/.test(err && err.stderr || '')) {
+					/* __GDPR__
+						"clone" : {
+							"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
+						}
+					*/
+				} else if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
+					return;
+				} else {
+					/* __GDPR__
+						"clone" : {
+							"outcome" : { "classification": "SystemMetaData", "purpose": "FeatureInsight" }
+						}
+					*/
+				}
 			}
 
 			throw err;
@@ -967,8 +972,10 @@ export class CommandCenter {
 				}
 			});
 		} catch (err) {
-			if (/Cancelled/.test(err.message)) {
-				return;
+			if (isGitError(err)) {
+				if (/Cancelled/.test(err.message)) {
+					return;
+				}
 			}
 
 			throw err;
@@ -997,8 +1004,10 @@ export class CommandCenter {
 				await this._stageDeletionConflict(repository, deletionConflict.resourceUri);
 			}
 		} catch (err) {
-			if (/Cancelled/.test(err.message)) {
-				return;
+			if (isGitError(err)) {
+				if (/Cancelled/.test(err.message)) {
+					return;
+				}
 			}
 
 			throw err;
@@ -1796,8 +1805,10 @@ export class CommandCenter {
 		try {
 			await run(force);
 		} catch (err) {
-			if (err.gitErrorCode !== VsrErrorCodes.BranchNotFullyMerged) {
-				throw err;
+			if (isGitError(err)) {
+				if (err.gitErrorCode !== VsrErrorCodes.BranchNotFullyMerged) {
+					throw err;
+				}
 			}
 
 			const message = localize('confirm force delete branch', "The branch '{0}' is not fully merged. Delete anyway?", name);
@@ -1822,15 +1833,17 @@ export class CommandCenter {
 		try {
 			await repository.renameBranch(branchName);
 		} catch (err) {
-			switch (err.gitErrorCode) {
-				case VsrErrorCodes.InvalidBranchName:
-					window.showErrorMessage(localize('invalid branch name', 'Invalid branch name'));
-					return;
-				case VsrErrorCodes.BranchAlreadyExists:
-					window.showErrorMessage(localize('branch already exists', "A branch named '{0}' already exists", branchName));
-					return;
-				default:
-					throw err;
+			if (isGitError(err)) {
+				switch (err.gitErrorCode) {
+					case VsrErrorCodes.InvalidBranchName:
+						window.showErrorMessage(localize('invalid branch name', 'Invalid branch name'));
+						return;
+					case VsrErrorCodes.BranchAlreadyExists:
+						window.showErrorMessage(localize('branch already exists', "A branch named '{0}' already exists", branchName));
+						return;
+					default:
+						throw err;
+				}
 			}
 		}
 	}
@@ -2041,8 +2054,10 @@ export class CommandCenter {
 			try {
 				await repository.push(repository.HEAD, forcePushMode);
 			} catch (err) {
-				if (err.gitErrorCode !== VsrErrorCodes.NoUpstreamBranch) {
-					throw err;
+				if (isGitError(err)) {
+					if (err.gitErrorCode !== VsrErrorCodes.NoUpstreamBranch) {
+						throw err;
+					}
 				}
 
 				if (pushOptions.silent) {
@@ -2228,8 +2243,10 @@ export class CommandCenter {
 		try {
 			await this._sync(repository, false);
 		} catch (err) {
-			if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
-				return;
+			if (isGitError(err)) {
+				if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
+					return;
+				}
 			}
 
 			throw err;
@@ -2254,8 +2271,10 @@ export class CommandCenter {
 		try {
 			await this._sync(repository, true);
 		} catch (err) {
-			if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
-				return;
+			if (isGitError(err)) {
+				if (/Cancelled/i.test(err && (err.message || err.stderr || ''))) {
+					return;
+				}
 			}
 
 			throw err;

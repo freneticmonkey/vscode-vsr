@@ -8,6 +8,7 @@ import { Repository, Operation } from './repository';
 import { eventToPromise, filterEvent, onceEvent } from './util';
 import * as nls from 'vscode-nls';
 import { VsrErrorCodes } from './api/vsr';
+import { GitError, isGitError } from './vsr';
 
 const localize = nls.loadMessageBundle();
 
@@ -101,8 +102,11 @@ export class AutoFetcher {
 			try {
 				await this.repository.fetchDefault({ silent: true });
 			} catch (err) {
-				if (err.gitErrorCode === VsrErrorCodes.AuthenticationFailed) {
-					this.disable();
+
+				if (isGitError(err)) {
+					if (err.gitErrorCode === VsrErrorCodes.AuthenticationFailed) {
+						this.disable();
+					}
 				}
 			}
 

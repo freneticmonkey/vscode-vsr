@@ -133,8 +133,10 @@ function findSystemVsrWin32(base: string, onLookup: (path: string) => void): Pro
 }
 
 function findVsrWin32InPath(onLookup: (path: string) => void): Promise<IVsr> {
-	const whichPromise = new Promise<string>((c, e) => which('vsr.exe', (err, path) => err ? e(err) : c(path)));
-	return whichPromise.then(path => findSpecificVsr(path, onLookup));
+	return Promise.reject<IVsr>('NYI');
+
+	// const whichPromise = new Promise<string>((c, e) => which('vsr.exe', (err, path) => err ? e(err) : c(path)));
+	// return whichPromise.then(path => findSpecificVsr(path, onLookup));
 }
 
 function findVsrWin32(onLookup: (path: string) => void): Promise<IVsr> {
@@ -303,6 +305,10 @@ export class GitError {
 	}
 }
 
+export function isGitError(obj: any): obj is GitError {
+	return obj instanceof GitError;
+}
+
 export interface IGitOptions {
 	gitPath: string;
 	version: string;
@@ -415,9 +421,11 @@ export class Vsr {
 		try {
 			await this.exec(parentPath, ['clone', url.includes(' ') ? encodeURI(url) : url, folderPath, '--progress'], { cancellationToken, onSpawn });
 		} catch (err) {
-			if (err.stderr) {
-				err.stderr = err.stderr.replace(/^Cloning.+$/m, '').trim();
-				err.stderr = err.stderr.replace(/^ERROR:\s+/, '').trim();
+			if ( isGitError(err)) {
+				if (err.stderr) {
+					err.stderr = err.stderr.replace(/^Cloning.+$/m, '').trim();
+					err.stderr = err.stderr.replace(/^ERROR:\s+/, '').trim();
+				}
 			}
 
 			throw err;
@@ -452,6 +460,9 @@ export class Vsr {
 	}
 
 	private async _exec(args: string[], options: SpawnOptions = {}): Promise<IExecutionResult<string>> {
+		// disable console colour output
+		args.push('--nocolours');
+		
 		const child = this.spawn(args, options);
 
 		if (options.onSpawn) {
@@ -510,16 +521,31 @@ export class Vsr {
 			LANG: 'en_US.UTF-8',
 			GIT_PAGER: 'cat'
 		});
-
+		
 		if (options.cwd) {
 			options.cwd = sanitizePath(options.cwd);
 		}
 
+		// ensure that colour codes aren't injected into the output
+		args.push('--nocolours');
+		const child = cp.spawn(this.path, args, options);
+		
 		if (options.log !== false) {
-			this.log(`> vsr ${args.join(' ')}\n`);
-		}
+			const startTime = Date.now();
+			child.on('exit', (_) => {
+				const now = new Date();
+				// hours as (HH) format
+				let hours = ("0" + now.getHours()).slice(-2);
 
-		return cp.spawn(this.path, args, options);
+				// minutes as (mm) format
+				let minutes = ("0" + now.getMinutes()).slice(-2);
+
+				// seconds as (ss) format
+				let seconds = ("0" + now.getSeconds()).slice(-2);
+				this.log("[" + hours + ":" + minutes + ":" + seconds + `] > vsr ${args.join(' ')} [${Date.now() - startTime}ms]\n`);				
+			});
+		}
+		return child;
 	}
 
 	private log(output: string): void {
@@ -1037,15 +1063,15 @@ export class Repository {
 		// return { mode, object, size: parseInt(size) };
 	}
 
-	// async lstree(treeish: string, path: string): Promise<LsTreeElement[]> {
-	// 	const { stdout } = await this.run(['ls-tree', '-l', treeish, '--', sanitizePath(path)]);
-	// 	return parseLsTree(stdout);
-	// }
+	async lstree(treeish: string, path: string): Promise<LsTreeElement[]> {
+		const { stdout } = await this.run(['ls-tree', '-l', treeish, '--', sanitizePath(path)]);
+		return parseLsTree(stdout);
+	}
 
-	// async lsfiles(path: string): Promise<LsFilesElement[]> {
-	// 	const { stdout } = await this.run(['ls-files', '--stage', '--', sanitizePath(path)]);
-	// 	return parseLsFiles(stdout);
-	// }
+	async lsfiles(path: string): Promise<LsFilesElement[]> {
+		const { stdout } = await this.run(['ls-files', '--stage', '--', sanitizePath(path)]);
+		return parseLsFiles(stdout);
+	}
 
 	async getGitRelativePath(ref: string, relativePath: string): Promise<string> {
 		const relativePathLowercase = relativePath.toLowerCase();
@@ -1110,8 +1136,10 @@ export class Repository {
 		try {
 			await this.run(args);
 		} catch (err) {
-			if (/patch does not apply/.test(err.stderr)) {
-				err.gitErrorCode = VsrErrorCodes.PatchDoesNotApply;
+			if (isGitError(err)) {
+				if (/patch does not apply/.test(err.stderr?.toString() || '')) {
+					err.gitErrorCode = VsrErrorCodes.PatchDoesNotApply;
+				}
 			}
 
 			throw err;
@@ -1351,8 +1379,10 @@ export class Repository {
 			const details = await this.getObjectDetails(treeish, path);
 			mode = details.mode;
 		} catch (err) {
-			if (err.gitErrorCode !== VsrErrorCodes.UnknownPath) {
-				throw err;
+			if (isGitError(err)) {
+				if (err.gitErrorCode !== VsrErrorCodes.UnknownPath) {
+					throw err;
+				}
 			}
 
 			mode = '100644';
@@ -1382,8 +1412,10 @@ export class Repository {
 				await this.run(args);
 			}
 		} catch (err) {
-			if (/Please,? commit your changes or stash them/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.DirtyWorkTree;
+			if (isGitError(err)) {
+				if (/Please,? commit your changes or stash them/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.DirtyWorkTree;
+				}
 			}
 
 			throw err;
@@ -1391,29 +1423,31 @@ export class Repository {
 	}
 
 	async commit(message: string, opts: CommitOptions = Object.create(null)): Promise<void> {
-		const args = ['commit', '--quiet', '--allow-empty-message', '--file', '-'];
+		const args = ['commit', '-m', message];
 
-		if (opts.all) {
-			args.push('--all');
-		}
+		// const args = ['commit', '--quiet', '--allow-empty-message', '--file', '-'];
 
-		if (opts.amend) {
-			args.push('--amend');
-		}
+		// if (opts.all) {
+		// 	args.push('--all');
+		// }
 
-		if (opts.signoff) {
-			args.push('--signoff');
-		}
+		// if (opts.amend) {
+		// 	args.push('--amend');
+		// }
 
-		if (opts.signCommit) {
-			args.push('-S');
-		}
-		if (opts.empty) {
-			args.push('--allow-empty');
-		}
+		// if (opts.signoff) {
+		// 	args.push('--signoff');
+		// }
+
+		// if (opts.signCommit) {
+		// 	args.push('-S');
+		// }
+		// if (opts.empty) {
+		// 	args.push('--allow-empty');
+		// }
 
 		try {
-			await this.run(args, { input: message || '' });
+			await this.run(args);
 		} catch (commitErr) {
 			await this.handleCommitError(commitErr);
 		}
@@ -1442,15 +1476,19 @@ export class Repository {
 		try {
 			await this.run(['config', '--get-all', 'user.name']);
 		} catch (err) {
-			err.gitErrorCode = VsrErrorCodes.NoUserNameConfigured;
-			throw err;
+			if (isGitError(err)) {
+				err.gitErrorCode = VsrErrorCodes.NoUserNameConfigured;
+				throw err;
+			}
 		}
 
 		try {
 			await this.run(['config', '--get-all', 'user.email']);
 		} catch (err) {
-			err.gitErrorCode = VsrErrorCodes.NoUserEmailConfigured;
-			throw err;
+			if (isGitError(err)) {
+				err.gitErrorCode = VsrErrorCodes.NoUserEmailConfigured;
+				throw err;
+			}
 		}
 
 		throw commitErr;
@@ -1492,8 +1530,10 @@ export class Repository {
 		try {
 			await this.run(args);
 		} catch (err) {
-			if (/^CONFLICT /m.test(err.stdout || '')) {
-				err.gitErrorCode = VsrErrorCodes.Conflict;
+			if (isGitError(err)) {
+				if (/^CONFLICT /m.test(err.stdout || '')) {
+					err.gitErrorCode = VsrErrorCodes.Conflict;
+				}
 			}
 
 			throw err;
@@ -1539,8 +1579,10 @@ export class Repository {
 		try {
 			await this.run(['checkout', '--', '.']);
 		} catch (err) {
-			if (/did not match any file\(s\) known to git\./.test(err.stderr || '')) {
-				return;
+			if (isGitError(err)) {
+				if (/did not match any file\(s\) known to git\./.test(err.stderr || '')) {
+					return;
+				}
 			}
 
 			throw err;
@@ -1572,10 +1614,12 @@ export class Repository {
 		try {
 			await this.run(args);
 		} catch (err) {
-			// In case there are merge conflicts to be resolved, git reset will output
-			// some "needs merge" data. We try to get around that.
-			if (/([^:]+: needs merge\n)+/m.test(err.stdout || '')) {
-				return;
+			if (isGitError(err)) {
+				// In case there are merge conflicts to be resolved, git reset will output
+				// some "needs merge" data. We try to get around that.
+				if (/([^:]+: needs merge\n)+/m.test(err.stdout || '')) {
+					return;
+				}
 			}
 
 			throw err;
@@ -1626,10 +1670,12 @@ export class Repository {
 		try {
 			await this.run(args, spawnOptions);
 		} catch (err) {
-			if (/No remote repository specified\./.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoRemoteRepositorySpecified;
-			} else if (/Could not read from remote repository/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.RemoteConnectionError;
+			if (isGitError(err)) {
+				if (/No remote repository specified\./.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoRemoteRepositorySpecified;
+				} else if (/Could not read from remote repository/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.RemoteConnectionError;
+				}
 			}
 
 			throw err;
@@ -1659,19 +1705,21 @@ export class Repository {
 		try {
 			await this.run(args, options);
 		} catch (err) {
-			if (/^CONFLICT \([^)]+\): \b/m.test(err.stdout || '')) {
-				err.gitErrorCode = VsrErrorCodes.Conflict;
-			} else if (/Please tell me who you are\./.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoUserNameConfigured;
-			} else if (/Could not read from remote repository/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.RemoteConnectionError;
-			} else if (/Pull is not possible because you have unmerged files|Cannot pull with rebase: You have unstaged changes|Your local changes to the following files would be overwritten|Please, commit your changes before you can merge/i.test(err.stderr)) {
-				err.stderr = err.stderr.replace(/Cannot pull with rebase: You have unstaged changes/i, 'Cannot pull with rebase, you have unstaged changes');
-				err.gitErrorCode = VsrErrorCodes.DirtyWorkTree;
-			} else if (/cannot lock ref|unable to update local ref/i.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.CantLockRef;
-			} else if (/cannot rebase onto multiple branches/i.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.CantRebaseMultipleBranches;
+			if (isGitError(err)) {
+				if (/^CONFLICT \([^)]+\): \b/m.test(err.stdout || '')) {
+					err.gitErrorCode = VsrErrorCodes.Conflict;
+				} else if (/Please tell me who you are\./.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoUserNameConfigured;
+				} else if (/Could not read from remote repository/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.RemoteConnectionError;
+				} else if (err.stderr != undefined && /Pull is not possible because you have unmerged files|Cannot pull with rebase: You have unstaged changes|Your local changes to the following files would be overwritten|Please, commit your changes before you can merge/i.test(err.stderr)) {
+					err.stderr = err.stderr?.replace(/Cannot pull with rebase: You have unstaged changes/i, 'Cannot pull with rebase, you have unstaged changes');
+					err.gitErrorCode = VsrErrorCodes.DirtyWorkTree;
+				} else if (/cannot lock ref|unable to update local ref/i.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.CantLockRef;
+				} else if (/cannot rebase onto multiple branches/i.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.CantRebaseMultipleBranches;
+				}
 			}
 
 			throw err;
@@ -1706,12 +1754,14 @@ export class Repository {
 		try {
 			await this.run(args);
 		} catch (err) {
-			if (/^error: failed to push some refs to\b/m.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.PushRejected;
-			} else if (/Could not read from remote repository/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.RemoteConnectionError;
-			} else if (/^fatal: The current branch .* has no upstream branch/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoUpstreamBranch;
+			if (isGitError(err)) {
+				if (/^error: failed to push some refs to\b/m.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.PushRejected;
+				} else if (/Could not read from remote repository/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.RemoteConnectionError;
+				} else if (/^fatal: The current branch .* has no upstream branch/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoUpstreamBranch;
+				}
 			}
 
 			throw err;
@@ -1724,8 +1774,10 @@ export class Repository {
 			const result = await this.run(args);
 			return result.stdout.trim();
 		} catch (err) {
-			if (/^fatal: no such path/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoPathFound;
+			if (isGitError(err)) {
+				if (/^fatal: no such path/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoPathFound;
+				}
 			}
 
 			throw err;
@@ -1746,8 +1798,10 @@ export class Repository {
 
 			await this.run(args);
 		} catch (err) {
-			if (/No local changes to save/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoLocalChanges;
+			if (isGitError(err)) {
+				if (/No local changes to save/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoLocalChanges;
+				}
 			}
 
 			throw err;
@@ -1772,12 +1826,14 @@ export class Repository {
 
 			await this.run(args);
 		} catch (err) {
-			if (/No stash found/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoStashFound;
-			} else if (/error: Your local changes to the following files would be overwritten/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.LocalChangesOverwritten;
-			} else if (/^CONFLICT/m.test(err.stdout || '')) {
-				err.gitErrorCode = VsrErrorCodes.StashConflict;
+			if (isGitError(err)) {
+				if (/No stash found/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoStashFound;
+				} else if (/error: Your local changes to the following files would be overwritten/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.LocalChangesOverwritten;
+				} else if (/^CONFLICT/m.test(err.stdout || '')) {
+					err.gitErrorCode = VsrErrorCodes.StashConflict;
+				}
 			}
 
 			throw err;
@@ -1794,8 +1850,10 @@ export class Repository {
 		try {
 			await this.run(args);
 		} catch (err) {
-			if (/No stash found/.test(err.stderr || '')) {
-				err.gitErrorCode = VsrErrorCodes.NoStashFound;
+			if (isGitError(err)) {
+				if (/No stash found/.test(err.stderr || '')) {
+					err.gitErrorCode = VsrErrorCodes.NoStashFound;
+				}
 			}
 
 			throw err;
@@ -2043,7 +2101,11 @@ export class Repository {
 				behind 
 			};
 		} catch (err) {
-			return { name, type: RefType.Head, commit };
+			if (isGitError(err)) {
+				return { name, type: RefType.Head, commit };
+			}
+
+			throw new Error(`Error while parsing upstream branch status: ${name}`);
 		}
 	}
 
@@ -2089,7 +2151,9 @@ export class Repository {
 			const raw = await fs.readFile(templatePath, 'utf8');
 			return this.stripCommitMessageComments(raw);
 		} catch (err) {
-			return '';
+			if (isGitError(err)) {
+				return '';
+			}
 		}
 	}
 
@@ -2117,8 +2181,10 @@ export class Repository {
 			const gitmodulesRaw = await fs.readFile(gitmodulesPath, 'utf8');
 			return parseGitmodules(gitmodulesRaw);
 		} catch (err) {
-			if (/ENOENT/.test(err.message)) {
-				return [];
+			if (isGitError(err)) {
+				if (/ENOENT/.test(err.message)) {
+					return [];
+				}
 			}
 
 			throw err;
